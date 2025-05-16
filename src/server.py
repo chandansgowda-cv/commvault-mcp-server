@@ -16,49 +16,6 @@ commvault_api_client = CommvaultApiClient()
 
 
 @mcp.tool()
-def get_jobs_in_last_24_hours():
-    """
-    Retrieves all jobs in the last 24 hours from Commvault.
-    Returns:
-        A dictionary containing information about all the jobs in the last 24 hours.
-    """
-    try:
-        jobs = commvault_api_client.get("Job?completedJobLookupTime=86400")
-        return jobs
-    except Exception as e:
-        logger.error(f"Error retrieving jobs in the last 24 hours: {e}")
-        return ToolError({"error": str(e)})
-
-@mcp.tool()
-def get_active_jobs():
-    """
-    Retrieves all active jobs from Commvault.
-    Returns:
-        A dictionary containing information about all the active jobs.
-    """
-    try:
-        jobs = commvault_api_client.get("Job?jobCategory=Active")
-        return jobs
-    except Exception as e:
-        logger.error(f"Error retrieving active jobs: {e}")
-        return ToolError({"error": str(e)})
-
-@mcp.tool()
-def get_job_by_id(job_id: Annotated[int, Field(description="The ID of the job to retrieve.")],):
-    """
-    Retrieves a specific job from Commvault.
-
-    Returns:
-        A dictionary containing information about the specified job.
-    """
-    try:
-        job = commvault_api_client.get(f"Job/{job_id}")
-        return job
-    except Exception as e:
-        logger.error(f"Error retrieving job with ID {job_id}: {e}")
-        return ToolError({"error": str(e)})
-
-@mcp.tool()
 def get_sla_status():
     """
     Retrieves the SLA status from Commvault.
@@ -105,6 +62,54 @@ def get_security_score():
         logger.error(f"Error retrieving security score: {e}")
         return ToolError({"error": str(e)})
 
+@mcp.tool()
+def get_jobs_in_last_24_hours(
+    limit: Annotated[int, Field(description="The maximum number of jobs to retrieve. Default is 50. Try to keep it low.")] = 50,
+    offset: Annotated[int, Field(description="The number of jobs to skip before starting to retrieve. Default is 0.")] = 0,
+):
+    """
+    Retrieves all jobs in the last 24 hours from Commvault.
+    Returns:
+        A dictionary containing information about all the jobs in the last 24 hours.
+    """
+    try:
+        jobs = commvault_api_client.get("Job?completedJobLookupTime=86400", headers={"limit": str(limit), "offset": str(offset)})
+        return jobs
+    except Exception as e:
+        logger.error(f"Error retrieving jobs in the last 24 hours: {e}")
+        return ToolError({"error": str(e)})
+
+@mcp.tool()
+def get_active_jobs(
+    limit: Annotated[int, Field(description="The maximum number of jobs to retrieve. Default is 50. Try to keep it low.")] = 50,
+    offset: Annotated[int, Field(description="The number of jobs to skip before starting to retrieve. Default is 0.")] = 0,
+):
+    """
+    Retrieves all active jobs from Commvault.
+    Returns:
+        A dictionary containing information about all the active jobs.
+    """
+    try:
+        jobs = commvault_api_client.get("Job?jobCategory=Active", headers={"limit": str(limit), "offset": str(offset)})
+        return jobs
+    except Exception as e:
+        logger.error(f"Error retrieving active jobs: {e}")
+        return ToolError({"error": str(e)})
+
+@mcp.tool()
+def get_job_by_id(job_id: Annotated[int, Field(description="The ID of the job to retrieve.")],):
+    """
+    Retrieves a specific job from Commvault.
+
+    Returns:
+        A dictionary containing information about the specified job.
+    """
+    try:
+        job = commvault_api_client.get(f"Job/{job_id}")
+        return job
+    except Exception as e:
+        logger.error(f"Error retrieving job with ID {job_id}: {e}")
+        return ToolError({"error": str(e)})
 
 
 if __name__ == "__main__":

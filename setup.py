@@ -77,7 +77,7 @@ def main():
     secret_keys = ['access_token', 'refresh_token', 'server_secret']
     prompt_and_save_keyring(service_name, secret_keys)
 
-    console.print("\n[bold green]Setup complete! You can now run your MCP server.[/bold green]")
+    console.print("\n[bold green]Setup complete! You can now run the MCP server (uv run src/server.py)[/bold green]")
 
 if __name__ == '__main__':
     main()
