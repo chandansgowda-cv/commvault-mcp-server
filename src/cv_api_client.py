@@ -15,6 +15,7 @@ class CommvaultApiClient:
     
     def __init__(self):
         self.base_url = get_env_var("CC_SERVER_URL") + "/commandcenter/api/"
+        self.ssl_verify = get_env_var("SSL_VERIFY", default="true").lower() == "true"  # This is to disable SSL verification for development purposes
         self.auth_service = AuthService()
             
     def _get_headers(self, additional_headers: Optional[Dict[str, str]] = None) -> Dict[str, str]:
@@ -51,7 +52,7 @@ class CommvaultApiClient:
                 url=refresh_url,
                 headers=headers,
                 data=json.dumps(payload),
-                verify=False  # Disable SSL verification for development purposes TODO: Remove in production
+                verify= self.ssl_verify
             )
             
             response.raise_for_status()
@@ -103,7 +104,7 @@ class CommvaultApiClient:
                     headers=request_headers,
                     params=params,
                     data=request_data,
-                    verify=False  # Disable SSL verification for development purposes TODO: Remove in production
+                    verify= self.ssl_verify
                 )
                 logger.info(f"Response status code: {response.status_code}")
                 logger.debug(f"Response content: {response.json()}")
