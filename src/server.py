@@ -64,7 +64,7 @@ def get_security_score():
 
 @mcp.tool()
 def get_jobs_in_last_24_hours(
-    limit: Annotated[int, Field(description="The maximum number of jobs to retrieve. Default is 50. Try to keep it low.")] = 50,
+    limit: Annotated[int, Field(description="The maximum number of jobs to retrieve. Default is 10. Try to keep it low.")] = 10,
     offset: Annotated[int, Field(description="The number of jobs to skip before starting to retrieve. Default is 0.")] = 0,
 ):
     """
@@ -81,7 +81,7 @@ def get_jobs_in_last_24_hours(
 
 @mcp.tool()
 def get_active_jobs(
-    limit: Annotated[int, Field(description="The maximum number of jobs to retrieve. Default is 50. Try to keep it low.")] = 50,
+    limit: Annotated[int, Field(description="The maximum number of jobs to retrieve. Default is 10. Try to keep it low.")] = 10,
     offset: Annotated[int, Field(description="The number of jobs to skip before starting to retrieve. Default is 0.")] = 0,
 ):
     """
