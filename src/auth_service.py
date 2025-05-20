@@ -46,6 +46,9 @@ class AuthService:
             return False
         mcp_client_token = auth_header.split(" ")[1] if auth_header.startswith("Bearer ") else auth_header
         secret = keyring.get_password(self.__service_name, "server_secret")
+        if secret is None:
+            logger.error("Server secret not found in keyring")
+            return False
 
         return mcp_client_token == secret
         

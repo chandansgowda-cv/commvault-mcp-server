@@ -39,5 +39,7 @@ def compute_security_score(api_response):
         for p in cat["parameter"]
     ]
     total = len(params)
+    if total == 0:
+        raise Exception("Some error occurred. Please try again later.")
     failures = sum(1 for p in params if p["status"] == 2)
     return round((total - failures) / total * 100)

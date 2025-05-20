@@ -153,26 +153,11 @@ class CommvaultApiClient:
                 raise
     
     # Convenience methods for common HTTP methods
-    def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None, headers: Optional[Dict[str, str]] = None) -> requests.Response:
+    def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None, headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """Make a GET request to the API."""
         return self.request("GET", endpoint, params=params, headers=headers)
     
     def post(self, endpoint: str, data: Optional[Union[Dict[str, Any], str]] = None, 
-             params: Optional[Dict[str, Any]] = None, headers: Optional[Dict[str, str]] = None) -> requests.Response:
+             params: Optional[Dict[str, Any]] = None, headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """Make a POST request to the API."""
         return self.request("POST", endpoint, params=params, data=data, headers=headers)
-    
-    def put(self, endpoint: str, data: Optional[Union[Dict[str, Any], str]] = None, 
-            params: Optional[Dict[str, Any]] = None, headers: Optional[Dict[str, str]] = None) -> requests.Response:
-        """Make a PUT request to the API."""
-        return self.request("PUT", endpoint, params=params, data=data, headers=headers)
-    
-    def delete(self, endpoint: str, params: Optional[Dict[str, Any]] = None, 
-               data: Optional[Union[Dict[str, Any], str]] = None, headers: Optional[Dict[str, str]] = None) -> requests.Response:
-        """Make a DELETE request to the API."""
-        return self.request("DELETE", endpoint, params=params, data=data, headers=headers)
-    
-    def patch(self, endpoint: str, data: Optional[Union[Dict[str, Any], str]] = None, 
-              params: Optional[Dict[str, Any]] = None, headers: Optional[Dict[str, str]] = None) -> requests.Response:
-        """Make a PATCH request to the API."""
-        return self.request("PATCH", endpoint, params=params, data=data, headers=headers)
