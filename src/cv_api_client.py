@@ -107,7 +107,6 @@ class CommvaultApiClient:
                     verify= self.ssl_verify
                 )
                 logger.info(f"Response status code: {response.status_code}")
-                logger.debug(f"Response content: {response.json()}")
                 
                 # Handle 401 Unauthorized error (expired token)
                 if response.status_code == 401:
@@ -123,6 +122,7 @@ class CommvaultApiClient:
                 # Catch other HTTP errors
                 response.raise_for_status()
 
+                logger.debug(f"Response content: {response.json()}")
                 return response.json()
                 
             except requests.exceptions.HTTPError as e:
