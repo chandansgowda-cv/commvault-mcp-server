@@ -1,3 +1,4 @@
+import hmac
 import keyring
 import sys
 from fastmcp.server.dependencies import get_http_request
@@ -50,5 +51,10 @@ class AuthService:
             logger.error("Server secret not found in keyring")
             return False
 
-        return mcp_client_token == secret
+        if not hmac.compare_digest(mcp_client_token, secret):
+            logger.warning("Invalid client token")
+            return False
+
+        return True
+
         
