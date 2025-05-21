@@ -122,8 +122,13 @@ class CommvaultApiClient:
                 # Catch other HTTP errors
                 response.raise_for_status()
 
-                logger.debug(f"Response content: {response.json()}")
-                return response.json()
+                try:
+                    response_json = response.json()
+                    logger.debug(f"Response content: {response_json}")
+                    return response_json
+                except ValueError:
+                    logger.error(f"Invalid JSON response: {response.text[:100]}...")
+                    raise Exception("Invalid response format from server")
                 
             except requests.exceptions.HTTPError as e:
                 # Let the 401 handling above take care of auth errors
