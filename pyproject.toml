@@ -1,0 +1,14 @@
+[project]
+name = "commvault-mcp-server"
+version = "0.1.0"
+description = "Commvault's Official MCP Server"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastmcp>=2.3.3",
+    "keyring>=25.6.0",
+    "pyfiglet>=1.0.2",
+    "python-dotenv>=1.1.0",
+    "requests>=2.32.3",
+    "rich>=14.0.0",
+]
