@@ -1,0 +1,12 @@
+import os
+from typing import Optional
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
+def get_env_var(var_name: str, default: Optional[str] = None) -> str:
+    value = os.getenv(var_name, default)
+    if value is None:
+        raise ValueError(f"Please check if you have set all the environment variables. You can run the setup script to set them.")
+    return value
