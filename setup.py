@@ -83,6 +83,7 @@ def prompt_update_env(env_vars):
 def prompt_and_save_keyring(service_name, key_names):
     console.print(f"\n[bold underline]Secure Tokens (stored in OS keyring)[/bold underline]")
     console.print("Leave blank to keep the existing secret.\n")
+    console.print("[bold yellow]Warning: Ensure you're entering sensitive tokens in a secure terminal environment.[/bold yellow]")
     for key in key_names:
         current = keyring.get_password(service_name, key)
         display_val = "<hidden>" if current else "none"

@@ -59,7 +59,7 @@ class AuthService:
         request = get_http_request()
         auth_header = request.headers.get("Authorization")
         if auth_header is None:
-            logger.error("Authorization header is missing in request")
+            logger.error("Authentication validation failed")
             return False
         mcp_client_token = auth_header.split(" ")[1] if auth_header.startswith("Bearer ") else auth_header
         secret = keyring.get_password(self.__service_name, "server_secret")
@@ -68,7 +68,7 @@ class AuthService:
             return False
 
         if not hmac.compare_digest(mcp_client_token, secret):
-            logger.warning("Invalid client token")
+            logger.warning("Authentication validation failed")
             return False
 
         return True
