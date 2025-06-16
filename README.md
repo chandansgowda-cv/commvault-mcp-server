@@ -2,8 +2,7 @@
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
-![Platform](https://img.shields.io/badge/platform-Commvault-lightgrey)
-![License: MIT](https://img.shields.io/badge/license-MIT-green)
+[![License](https://img.shields.io/badge/License-Apache_2.0-red.svg)](https://opensource.org/licenses/Apache-2.0)
 
 
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.org/) server for interacting with **Commvault** software. This server provides a standardized interface for AI agents to access job details, security posture and SLA status of the commcell.
