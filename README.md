@@ -47,7 +47,7 @@ The following values will be collected during the setup process:
   You need a valid `access_token` and `refresh_token` to authenticate with the Commvault API.
   Learn how to generate these tokens here: [Creating an Access Token – Commvault Docs](https://documentation.commvault.com/11.38/expert/creating_access_token.html)
   
-* **Client Secret:**
+* **Secret Key:**
   This secret must be included by the **MCP Client** in the `Authorization` header of all tool requests.
   It acts as a security layer for tool access in remote server.
 
