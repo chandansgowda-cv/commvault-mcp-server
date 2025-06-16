@@ -17,7 +17,7 @@
 import logging
 from logging.handlers import RotatingFileHandler
 
-from utils import get_env_var
+from src.utils import get_env_var
 
 
 logger = logging.getLogger("cv_mcp")
