@@ -78,10 +78,9 @@ The following values will be collected during the setup process:
 {
   "mcpServers": {
     "Commvault": {
-      "command": "uv",
+      "command": "C:\\YOUR\\PATH\\TO\\commvault-mcp-server\\.venv\\bin\\python",
       "args": [
-        "run",
-        "C:\\YOUR\\PATH\\TO\\commvault-mcp-server/src/server.py"
+        "C:\\YOUR\\PATH\\TO\\commvault-mcp-server\\src\\server.py"
       ]
     }
   }
