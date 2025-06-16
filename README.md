@@ -49,7 +49,7 @@ The following values will be collected during the setup process:
   
 * **Secret Key:**
   This secret must be included by the **MCP Client** in the `Authorization` header of all tool requests.
-  It acts as a security layer for tool access in remote server.
+  It acts as a security layer for tool access in remote server. You can set your own. 
 
 
 ## Configuring Clients
