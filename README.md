@@ -61,6 +61,8 @@ The following values will be collected during the setup process:
 
 ## Configuring Clients
 
+> **Note:** `npx` is required. You can get it by installing [Node.js](https://nodejs.org/) which includes `npx` by default.
+
 <details>
 <summary>Remote MCP Server (Streamable HTTP / SSE)</summary>
 
