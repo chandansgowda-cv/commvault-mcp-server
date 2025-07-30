@@ -164,3 +164,18 @@ def compute_security_score(api_response):
         raise Exception("Some error occurred. Please try again later.")
     failures = sum(1 for p in params if p.get("status") == 2)
     return round((total - failures) / total * 100)
+
+def filter_client_list_response(response):
+    """
+    Filters the client list response to return only clientName, clientId, displayName, hostName, clientGUID, and companyId.
+    """
+    filtered_clients = []
+    for item in response.get("clientProperties", []):
+        client_entity = item.get("client", {}).get("clientEntity", {})
+        entity_info = client_entity.get("entityInfo", {})
+        filtered_clients.append({
+            "clientName": client_entity.get("clientName"),
+            "clientId": client_entity.get("clientId"),
+            "hostName": client_entity.get("hostName")
+        })
+    return {"clients": filtered_clients}
