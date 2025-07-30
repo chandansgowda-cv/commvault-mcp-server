@@ -125,6 +125,33 @@ def get_jobs_list(
     except Exception as e:
         logger.error(f"Error retrieving jobs by job type: {e}")
         return ToolError({"error": str(e)})
+    
+@mcp.tool()
+def get_failed_jobs(
+    jobLookupWindow: Annotated[int, Field(description="The time window in seconds to look up for jobs. For example, 86400 for the last 24 hours.")]=86400,
+    limit: Annotated[int, Field(description="The maximum number of jobs to return. Default is 50.")] = 50,
+    offset: Annotated[int, Field(description="The offset for pagination.")] = 0) -> dict:
+    """
+    Gets the list of failed jobs in a given jobLookupWindow.
+    """
+    try:
+        payload = {
+            "category": 0,
+            "pagingConfig": {
+                "offset": offset,
+                "limit": limit
+            },
+            "jobFilter": {
+                "completedJobLookupTime": jobLookupWindow,
+                "showAgedJobs": False,
+                "statusList": ["Failed"]
+            }
+        }
+        response = commvault_api_client.post("Jobs", data=payload)
+        return get_basic_job_details(response)
+    except Exception as e:
+        logger.error(f"Error retrieving failed jobs: {e}")
+        return ToolError({"error": str(e)})
 
 @mcp.tool()
 def get_job_task_details(job_id: Annotated[int, Field(description="The job id to retrieve task details for.")]) -> dict:
