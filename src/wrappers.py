@@ -179,3 +179,33 @@ def filter_client_list_response(response):
             "hostName": client_entity.get("hostName")
         })
     return {"clients": filtered_clients}
+
+def filter_schedules_response(response):
+    """
+    Filters the schedules API response to return only relevant information with LLM-friendly key names.
+    """
+    schedules = []
+    for item in response.get("taskDetail", []):
+        task = item.get("task", {})
+        sub_tasks = item.get("subTasks", [])
+        filtered_subtasks = []
+        for sub in sub_tasks:
+            sub_task = sub.get("subTask", {})
+            filtered_subtasks.append({
+                "scheduleName": sub_task.get("subTaskName"),
+                "scheduleId": sub_task.get("subTaskId"),
+                "operationType": sub_task.get("operationType"),
+                "nextRunTime": sub.get("nextScheduleTime"),
+            })
+
+        # Only add if "policyName" does not contain "System Created"
+        policy_name = task.get("taskName", "")
+        description = task.get("description", "")
+        if "system created" not in policy_name.lower() and "system created" not in description.lower():
+            schedules.append({
+            "policyName": policy_name,
+            "policyId": task.get("taskId"),
+            "description": description,
+            "schedules": filtered_subtasks,
+            })
+    return {"totalPolicies": len(schedules), "policies": schedules}

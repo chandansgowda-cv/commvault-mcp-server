@@ -225,7 +225,7 @@ def get_security_score():
     except Exception as e:
         logger.error(f"Error retrieving security score: {e}")
         return ToolError({"error": str(e)})
-    
+
 @mcp.tool()
 def get_storage_space_utilization():
     """
@@ -333,6 +333,50 @@ def get_subclient_properties(subclient_id: Annotated[str, Field(description="The
 
 ###### SCHEDULE POLICY MANAGEMENT TOOLS ######
 
+@mcp.tool()
+def get_schedules_list() -> dict:
+    """
+    Gets the list of schedules (filtered for relevant information).
+    """
+    try:
+        response = commvault_api_client.get("Schedules")
+        return filter_schedules_response(response)
+    except Exception as e:
+        logger.error(f"Error retrieving schedule list: {e}")
+        return ToolError({"error": str(e)})
+    
+@mcp.tool()
+def get_schedule_properties(schedule_id: Annotated[str, Field(description="The schedule id to retrieve properties for.")]) -> dict:
+    """
+    Gets properties for a given schedule id.
+    """
+    try:
+        return commvault_api_client.get(f"Schedule/{schedule_id}")
+    except Exception as e:
+        logger.error(f"Error retrieving schedule properties: {e}")
+        return ToolError({"error": str(e)})
+    
+@mcp.tool()
+def enable_schedule(schedule_id: Annotated[str, Field(description="The schedule id to enable.")]) -> dict:
+    """
+    Enables a schedule with the given schedule id.
+    """
+    try:
+        return commvault_api_client.post(f"/Schedules/task/Action/Enable", data={"taskId": schedule_id})
+    except Exception as e:
+        logger.error(f"Error enabling schedule: {e}")
+        return ToolError({"error": str(e)})
+    
+@mcp.tool()
+def disable_schedule(schedule_id: Annotated[str, Field(description="The schedule id to disable.")]) -> dict:
+    """
+    Disables a schedule with the given schedule id.
+    """
+    try:
+        return commvault_api_client.post(f"/Schedules/task/Action/Disable", data={"taskId": schedule_id})
+    except Exception as e:
+        logger.error(f"Error disabling schedule: {e}")
+        return ToolError({"error": str(e)})
 
 ###### STORAGE POLICY MANAGEMENT TOOLS ######
 
