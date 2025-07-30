@@ -18,7 +18,14 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.org/) server for i
 
 ## Setup
 
-### 1. Run the Setup Script
+### 1. Clone the repository
+
+```bash
+git clone <repository-url>
+cd commvault-mcp-server
+```
+
+### 2. Run the Setup Script
 
 ```bash
 uv run setup.py
@@ -49,13 +56,15 @@ The following values will be collected during the setup process:
   
 * **Secret Key:**
   This secret must be included by the **MCP Client** in the `Authorization` header of all tool requests.
-  It acts as a security layer for tool access in remote server.
+  It acts as a security layer for tool access in remote server. You can set your own. 
 
 
 ## Configuring Clients
 
+> **Note:** `npx` is required. You can get it by installing [Node.js](https://nodejs.org/) which includes `npx` by default.
+
 <details>
-<summary>Remote MCP Server (SSE / Streamable HTTP)</summary>
+<summary>Remote MCP Server (Streamable HTTP / SSE)</summary>
 
 ```json
 {
@@ -63,6 +72,38 @@ The following values will be collected during the setup process:
     "Commvault": {
       "command": "npx",
       "args": ["mcp-remote", "HOST:PORT/mcp", "--header", "Authorization: <secret stored in server keyring>"]
+    }
+  }
+}
+
+```
+</details>
+
+<details>
+<summary>Remote MCP Server (Client on Windows)</summary>
+
+```json
+{
+  "mcpServers": {
+    "Commvault": {
+      "command": "cmd",
+      "args": ["/c", "npx", "mcp-remote", "HOST:PORT/mcp", "--header", "Authorization: <secret stored in server keyring>"]
+    }
+  }
+}
+
+```
+</details>
+
+<details>
+<summary>Remote MCP Server (HTTP)</summary>
+
+```json
+{
+  "mcpServers": {
+    "Commvault": {
+      "command": "npx",
+      "args": ["mcp-remote", "HOST:PORT/mcp", "--header", "Authorization: <secret stored in server keyring>", "--allow-http"]
     }
   }
 }
