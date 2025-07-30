@@ -225,6 +225,20 @@ def get_security_score():
     except Exception as e:
         logger.error(f"Error retrieving security score: {e}")
         return ToolError({"error": str(e)})
+    
+@mcp.tool()
+def get_storage_space_utilization():
+    """
+    Retrieves storage space utilization or the amount of data that is in all disk or cloud libraries, and the percentage of storage space that was saved because of compression and deduplication.
+    Returns:
+        A dictionary containing information about the storage space utilization.
+    """
+    try:
+        api_response = commvault_api_client.get("cr/reportsplusengine/datasets/2b366703-52e1-4775-8047-1f4cfa13d2db/data?cache=true&parameter.i_dashboardtype=commcell&orderby='date to be full'&datasource=2")
+        return format_report_dataset_response(api_response)
+    except Exception as e:
+        logger.error(f"Error retrieving storage space utilization: {e}")
+        return ToolError({"error": str(e)})
 
 ##################################################
 
