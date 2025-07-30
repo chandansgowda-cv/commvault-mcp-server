@@ -238,15 +238,6 @@ def get_sla_status() -> dict:
         logger.error(f"Error retrieving SLA status: {e}")
         return ToolError({"error": str(e)})
 
-@mcp.tool
-def trigger_recovery() -> str:
-    """ 
-    Triggers a recovery operation in Commvault.
-    Returns:
-        A string indicating that the recovery operation has been triggered.
-    """
-    return "Recovery operation triggered successfully."
-
 ##################################################
 
 ###### CLIENT MANAGEMENT TOOLS ######
