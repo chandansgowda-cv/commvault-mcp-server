@@ -32,53 +32,6 @@ commvault_api_client = CommvaultApiClient()
 
 
 @mcp.tool()
-def get_sla_status():
-    """
-    Retrieves the SLA status from Commvault.
-    Returns:
-        A dictionary containing information about the SLA status.
-    """
-    try:
-        sla_data = commvault_api_client.get("cr/reportsplusengine/datasets/getslacounts/data?cache=true&parameter.i_dashboardtype=commcell&datasource=2")
-        sla_status = transform_sla_data(sla_data)
-        return sla_status
-    except Exception as e:
-        logger.error(f"Error retrieving SLA status: {e}")
-        return ToolError({"error": str(e)})
-
-@mcp.tool()
-def get_security_posture():
-    """
-    Retrieves the security posture of the Commcell.
-    Returns:
-        A dictionary containing information about the security posture of the Commcell.
-    """
-    try:
-        security_posture = commvault_api_client.get("Security/Dashboard")
-        return security_posture
-    except Exception as e:
-        logger.error(f"Error retrieving security posture: {e}")
-        return ToolError({"error": str(e)})
-
-@mcp.tool()
-def get_security_score():
-    """
-    Retrieves the security score of the Commcell.
-    Returns:
-        A dictionary containing information about the security score of the Commcell.
-    """
-    try:
-        security_posture = commvault_api_client.get("Security/Dashboard")
-        security_score = compute_security_score(security_posture)
-        response = {
-            "security_score": security_score
-        }
-        return response
-    except Exception as e:
-        logger.error(f"Error retrieving security score: {e}")
-        return ToolError({"error": str(e)})
-
-@mcp.tool()
 def get_job_detail(job_id: Annotated[int, Field(description="The ID of the job to retrieve.")],) -> dict:
     """
     Gets complete details about a job for a given job id.
@@ -236,6 +189,38 @@ def get_sla_status() -> dict:
         return sla_status
     except Exception as e:
         logger.error(f"Error retrieving SLA status: {e}")
+        return ToolError({"error": str(e)})
+    
+@mcp.tool()
+def get_security_posture():
+    """
+    Retrieves the security posture of the Commcell.
+    Returns:
+        A dictionary containing information about the security posture of the Commcell.
+    """
+    try:
+        security_posture = commvault_api_client.get("Security/Dashboard")
+        return security_posture
+    except Exception as e:
+        logger.error(f"Error retrieving security posture: {e}")
+        return ToolError({"error": str(e)})
+
+@mcp.tool()
+def get_security_score():
+    """
+    Retrieves the security score of the Commcell.
+    Returns:
+        A dictionary containing information about the security score of the Commcell.
+    """
+    try:
+        security_posture = commvault_api_client.get("Security/Dashboard")
+        security_score = compute_security_score(security_posture)
+        response = {
+            "security_score": security_score
+        }
+        return response
+    except Exception as e:
+        logger.error(f"Error retrieving security score: {e}")
         return ToolError({"error": str(e)})
 
 ##################################################
