@@ -675,38 +675,22 @@ def get_user_properties(user_id: Annotated[str, Field(description="The user id t
         return ToolError({"error": str(e)})
 
 @mcp.tool()
-def enable_user(user_id: Annotated[str, Field(description="The user id to enable.")]) -> dict:
+def set_user_enabled(user_id: Annotated[str, Field(description="The user id to enable or disable.")], enabled: Annotated[bool, Field(description="Set to True to enable the user, False to disable.")]) -> dict:
     """
-    Enables a user with the given user id.
-    """
-    try:
-        response = commvault_api_client.put(f"user/{user_id}/enable")
-        if response["response"][0].get("errorCode", -1) == 0:
-            return "User enabled successfully."
-        else:
-            error_message = response["response"][0].get("errorMessage", "Unknown error occurred.")
-            raise Exception(f"Failed to enable user: {error_message}")
-    except Exception as e:
-        logger.error(f"Error enabling user: {e}")
-        return ToolError({"error": str(e)})
-    
-@mcp.tool()
-def disable_user(user_id: Annotated[str, Field(description="The user id to disable.")]) -> dict:
-    """
-    Disables a user with the given user id.
+    Enables or disables a user with the given user id based on the 'enabled' flag.
     """
     try:
-        response = commvault_api_client.put(f"user/{user_id}/disable")
+        action = "enable" if enabled else "disable"
+        response = commvault_api_client.put(f"user/{user_id}/{action}")
         if response["response"][0].get("errorCode", -1) == 0:
-            return "User disabled successfully."
+            return f"User {action}d successfully."
         else:
             error_message = response["response"][0].get("errorMessage", "Unknown error occurred.")
-            raise Exception(f"Failed to disable user: {error_message}")
-    
+            raise Exception(f"Failed to {action} user: {error_message}")
     except Exception as e:
-        logger.error(f"Error disabling user: {e}")
+        logger.error(f"Error {'enabling' if enabled else 'disabling'} user: {e}")
         return ToolError({"error": str(e)})
-    
+
 @mcp.tool()
 def get_user_groups_list() -> dict:
     """
