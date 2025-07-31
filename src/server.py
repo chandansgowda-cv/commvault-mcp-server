@@ -673,7 +673,24 @@ def get_user_properties(user_id: Annotated[str, Field(description="The user id t
     except Exception as e:
         logger.error(f"Error retrieving user properties: {e}")
         return ToolError({"error": str(e)})
-    
+
+@mcp.tool()
+def set_user_enabled(user_id: Annotated[str, Field(description="The user id to enable or disable.")], enabled: Annotated[bool, Field(description="Set to True to enable the user, False to disable.")]) -> dict:
+    """
+    Enables or disables a user with the given user id based on the 'enabled' flag.
+    """
+    try:
+        action = "enable" if enabled else "disable"
+        response = commvault_api_client.put(f"user/{user_id}/{action}")
+        if response["response"][0].get("errorCode", -1) == 0:
+            return {"message": f"User {action}d successfully."}
+        else:
+            error_message = response["response"][0].get("errorMessage", "Unknown error occurred.")
+            raise Exception(f"Failed to {action} user: {error_message}")
+    except Exception as e:
+        logger.error(f"Error {'enabling' if enabled else 'disabling'} user: {e}")
+        return ToolError({"error": str(e)})
+
 @mcp.tool()
 def get_user_groups_list() -> dict:
     """
@@ -697,6 +714,31 @@ def get_user_group_properties(user_group_id: Annotated[str, Field(description="T
         return commvault_api_client.get(f"v4/usergroup/{user_group_id}")
     except Exception as e:
         logger.error(f"Error retrieving user group properties: {e}")
+        return ToolError({"error": str(e)})
+
+@mcp.tool()
+def set_user_group_assignment(
+    user_id: Annotated[str, Field(description="The user id to assign to the user group.")], 
+    user_group_id: Annotated[str, Field(description="The user group id to assign the user to.")], 
+    assign: Annotated[bool, Field(description="Set to True to assign the user to the group, False to remove the user from the group.")]=True
+    ) -> dict:
+    """
+    Assigns or removes a user from a user group based on the 'assign' flag.
+    Set assign=True to add the user to the group, or assign=False to remove the user from the group.
+    """
+    try:
+        operation = "ADD" if assign else "DELETE"
+        payload = {
+            "userGroupOperation": operation,
+            "userGroups": [
+                {
+                    "id": user_group_id
+                }
+            ],
+        }
+        return commvault_api_client.put(f"/commandcenter/proxy/v4/user/{user_id}", data=payload)
+    except Exception as e:
+        logger.error(f"Error assigning user {user_id} to user group {user_group_id}: {e}")
         return ToolError({"error": str(e)})
 
 
