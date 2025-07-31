@@ -683,7 +683,7 @@ def set_user_enabled(user_id: Annotated[str, Field(description="The user id to e
         action = "enable" if enabled else "disable"
         response = commvault_api_client.put(f"user/{user_id}/{action}")
         if response["response"][0].get("errorCode", -1) == 0:
-            return f"User {action}d successfully."
+            return {"message": f"User {action}d successfully."}
         else:
             error_message = response["response"][0].get("errorMessage", "Unknown error occurred.")
             raise Exception(f"Failed to {action} user: {error_message}")
