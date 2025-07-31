@@ -649,6 +649,56 @@ def create_send_logs_job_for_a_job(emailid: Annotated[str, Field(description="Th
         logger.error(f"Error creating send logs job for job: {e}")
         return ToolError({"error": str(e)})
 
+@mcp.tool()
+def get_users_list() -> dict:
+    """
+    Gets the list of users in the CommCell.
+    Returns:
+        A dictionary containing the list of users.
+    """
+    try:
+        response = commvault_api_client.get("v4/user")
+        return filter_users_response(response)
+    except Exception as e:
+        logger.error(f"Error retrieving user list: {e}")
+        return ToolError({"error": str(e)})
+    
+@mcp.tool()
+def get_user_properties(user_id: Annotated[str, Field(description="The user id to retrieve properties for.")]) -> dict:
+    """
+    Gets properties for a given user id.
+    """
+    try:
+        return commvault_api_client.get(f"v4/user/{user_id}")
+    except Exception as e:
+        logger.error(f"Error retrieving user properties: {e}")
+        return ToolError({"error": str(e)})
+    
+@mcp.tool()
+def get_user_groups_list() -> dict:
+    """
+    Gets the list of user groups in the CommCell.
+    Returns:
+        A dictionary containing the list of user groups.
+    """
+    try:
+        response = commvault_api_client.get("v4/usergroup")
+        return filter_user_groups_response(response)
+    except Exception as e:
+        logger.error(f"Error retrieving user group list: {e}")
+        return ToolError({"error": str(e)})
+
+@mcp.tool()
+def get_user_group_properties(user_group_id: Annotated[str, Field(description="The user group id to retrieve properties for.")]) -> dict:
+    """
+    Gets properties for a given user group id.
+    """
+    try:
+        return commvault_api_client.get(f"v4/usergroup/{user_group_id}")
+    except Exception as e:
+        logger.error(f"Error retrieving user group properties: {e}")
+        return ToolError({"error": str(e)})
+
 
 if __name__ == "__main__":
     mcp_transport_mode = get_env_var("MCP_TRANSPORT_MODE")

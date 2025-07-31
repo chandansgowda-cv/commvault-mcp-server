@@ -209,3 +209,32 @@ def filter_schedules_response(response):
             "schedules": filtered_subtasks,
             })
     return {"totalPolicies": len(schedules), "policies": schedules}
+
+def filter_users_response(response):
+    """
+    Filters the users API response to return only relevant, LLM-friendly information.
+    """
+    users = []
+    for user in response.get("users", []):
+        users.append({
+            "userId": user.get("id"),
+            "userName": user.get("name"),
+            "email": user.get("email"),
+            "fullName": user.get("fullName"),
+            "lastLoginTime": user.get("lastLoggedIn"),
+            "companyId": user.get("company", {}).get("id")
+        })
+    return {"totalUsers": response.get("numberOfUsers", len(users)), "users": users}
+
+def filter_user_groups_response(response):
+    """
+    Filters the user groups API response to return only relevant, LLM-friendly information.
+    """
+    user_groups = []
+    for group in response.get("userGroups", []):
+        user_groups.append({
+            "userGroupId": group.get("id"),
+            "userGroupName": group.get("name"),
+            "companyId": group.get("company", {}).get("id")
+        })
+    return {"totalUserGroups": response.get("numberOfUserGroups", len(user_groups)), "userGroups": user_groups}
