@@ -182,3 +182,8 @@ class CommvaultApiClient:
              params: Optional[Dict[str, Any]] = None, headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """Make a POST request to the API."""
         return self.request("POST", endpoint, params=params, data=data, headers=headers)
+    
+    def put(self, endpoint: str, data: Optional[Union[Dict[str, Any], str]] = None, 
+             params: Optional[Dict[str, Any]] = None, headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+        """Make a PUT request to the API."""
+        return self.request("PUT", endpoint, params=params, data=data, headers=headers)

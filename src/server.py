@@ -673,6 +673,39 @@ def get_user_properties(user_id: Annotated[str, Field(description="The user id t
     except Exception as e:
         logger.error(f"Error retrieving user properties: {e}")
         return ToolError({"error": str(e)})
+
+@mcp.tool()
+def enable_user(user_id: Annotated[str, Field(description="The user id to enable.")]) -> dict:
+    """
+    Enables a user with the given user id.
+    """
+    try:
+        response = commvault_api_client.put(f"user/{user_id}/enable")
+        if response["response"][0].get("errorCode", -1) == 0:
+            return "User enabled successfully."
+        else:
+            error_message = response["response"][0].get("errorMessage", "Unknown error occurred.")
+            raise Exception(f"Failed to enable user: {error_message}")
+    except Exception as e:
+        logger.error(f"Error enabling user: {e}")
+        return ToolError({"error": str(e)})
+    
+@mcp.tool()
+def disable_user(user_id: Annotated[str, Field(description="The user id to disable.")]) -> dict:
+    """
+    Disables a user with the given user id.
+    """
+    try:
+        response = commvault_api_client.put(f"user/{user_id}/disable")
+        if response["response"][0].get("errorCode", -1) == 0:
+            return "User disabled successfully."
+        else:
+            error_message = response["response"][0].get("errorMessage", "Unknown error occurred.")
+            raise Exception(f"Failed to disable user: {error_message}")
+    
+    except Exception as e:
+        logger.error(f"Error disabling user: {e}")
+        return ToolError({"error": str(e)})
     
 @mcp.tool()
 def get_user_groups_list() -> dict:
