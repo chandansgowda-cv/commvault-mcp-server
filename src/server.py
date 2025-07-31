@@ -96,43 +96,17 @@ def kill_job(job_id: Annotated[int, Field(description="The ID of the job to kill
     except Exception as e:
         logger.error(f"Error killing job: {e}")
         return ToolError({"error": str(e)})
-    
-@mcp.tool()
-def get_jobs_by_clientid(
-    completedJobLookupTime: Annotated[int, Field(description="The time window in seconds to look up completed jobs.")] = 86400,
-    client_id: Annotated[str, Field(description="The client id to filter jobs by.")] = None,
-    job_status: Annotated[str, Field(description="The job status to filter by.")] = "All",
-    limit: Annotated[int, Field(description="The maximum number of jobs to return.")] = 100,
-    offset: Annotated[int, Field(description="The offset for pagination.")] = None
-) -> dict:
-    """
-    Gets jobs filtered by client ID.
-    """
-    try:
-        params = {
-            "jobCategory": job_status,
-            "completedJobLookupTime": completedJobLookupTime,
-            "limit": limit
-        }
-        if client_id:
-            params["clientId"] = client_id
-        if offset is not None:
-            params["offset"] = offset
-        return commvault_api_client.get("Job", params=params)
-    except Exception as e:
-        logger.error(f"Error retrieving jobs by client id: {e}")
-        return ToolError({"error": str(e)})
 
 @mcp.tool()
 def get_jobs_list(
-    jobLookupWindow: Annotated[int, Field(description="The time window in seconds to look up for jobs jobs. For example, 86400 for the last 24 hours.")] = 86400,
-    job_filter: Annotated[str, Field(description="The job types to filter by. Multiple types can be provided, comma-separated. If not used, returns backup jobs.")] = "",
-    job_status: Annotated[str, Field(description="The job status to filter by. Valid values are: Active, Finished, All")] = "All",
+    jobLookupWindow: Annotated[int, Field(description="The time window in seconds to look up for jobs jobs. For example, 86400 for the last 24 hours.")]=86400,
+    job_filter: Annotated[str, Field(description="The job types to filter by. Multiple types can be provided, comma-separated. If not used, returns backup jobs. Valid values are: MAGLIBMAINTENANCE, SELECTIVEDELETE, ARCHIVERESTORE, MEDIAINIT, SEND_LOGFILE, AUXCOPY, MEDIAINVENTORY, SHELFMANAGEMENT, Backup, MEDIAPREDICTION, SNAPBACKUP, BACKUP3RD, BROWSEANDDELETE, MEDIARECYCLE, SNAPBACKUP3RD, CATALOG_MIGRATION, MEDIAREFRESHING, SNAPRECOVERY, CATALOGUEMEDIA, MEDIAREFRESHING2, SNAPSHOT, CCMCAPTURE, MININGBACKUP, SNAPTOTAPE, CCMMERGE, MININGCONTENTINDEX, SNAPTOTAPEWORKFLOW, COMMCELLSYNC, MOVE_MOUNT_PATH, SNAPVAULTRESTORE, CONTDATAREPLICATION, MOVEDDB, SPACE_RECLAMATION, CONTENT_INDEXING_ENTITY_EXTRACTION, MULTI_NODE_CONTENT_INDEXING, SRMAGENTLESSOPTYPE, CREATECONSISTENCYPOINT, OFFLINE, SRMOPTYPE, CREATERECOVERYPOINT, OFFLINE_MINING_RESTORE, SRMREPORT, CREATEREPLICA, OFFLINECONTENTINDEX, SRSYSTEMRECOVERY, CSDRBKP, ONLINE, STAMPMEDIA, CVEXPORT, Online_Content_Index, STATELESS_BACKUP, DATA_ANALYTICS, ONLINE_CRAWL, STUBBING, DATA_VERIFICATION, OPENBACKUP, SUBCLIENTCONTENTINDEX, DDBOPS, OTHERADMINOPERATION, SYNTHFULL, DEDUPDBSYNC, PATCHDOWNLOAD, SYSRECOVERYBACKUP, DEDUPDBSYNC_DASH, PATCHUPDATE, SYSSTATEBACKUP, DELAYEDCATALOG, POWERRESTORE, TAPE2TAPECOPY, DELAYEDCATALOGWORKFLOW, POWERSEARCHANDRETRIEVE, TAPEERASE, DMOUTLOOKRST, PRUNE, TAPEIMPORT, DRIVECLEANING, PST_ARCHIVING, TDFSBACKUP, DRIVEVALIDATION, QRCOPYBACK, TURBO_NAS, DRORCHESTRATION, QRROLLBACK, UNINSTALLCLIENT, EXCHANGE_IMPORT, QUICKDMRST, UPDATEREPLICA, EXCHANGE_LIVE_BROWSE_RST, RECOVERY_POINT_CREATION_RST, UPGRADE_CLIENT, FDCCLIENT, REFCOPYPSTARCHIVING, VIRTUALIZEME, FDCOPTYPE, REFERENCECOPY, VM_Management, FDCPREPARATION, REFERENCECOPYWORKFLOW, VSA_BLOCK_REPLICATION, FDCWORKFLOW, REPLICATION, VSA_BLOCK_REPLICATION_DRIVER_INSTALL, FLRCOPYBACK, REPORT, VSA_BLOCK_REPLICATION_DRIVER_UNINSTALL, IMPORT, Restore, VSA_BLOCK_REPLICATION_DRIVER_UPDATE, INDEXFREERESTORE, RESTORE_VALIDATE, W2KFULLBUILDRESTORE, INDEXRESTORE, SCHEDEXPORT, W2KFULLBUILDRESTORE371, INFOMGMT, SCHEDULE, W2KSYSSTRESTORE, INSTALLCLIENT, SEARCHANDRETRIEVE, WORKFLOW, LOG_MONITORING, SECUREERASE, WORKFLOW_MGMT.")]="", 
+    job_status: Annotated[str, Field(description="The job status to filter by. Valid values are: Active, Finished, All")] = "All", 
+    client_id: Annotated[str, Field(description="The client id to filter jobs by. Not mandatory. If not provided, jobs for all clients will be returned.")] = None,
     limit: Annotated[int, Field(description="The maximum number of jobs to return. Default is 50.")] = 50,
-    offset: Annotated[int, Field(description="The offset for pagination.")] = 0
-) -> dict:
+    offset: Annotated[int, Field(description="The offset for pagination.")] = 0) -> dict:
     """
-    Gets the list of jobs filtered by job type and/or status in a given jobLookupWindow.
+    Gets the list of jobs filtered by job type/status/clientId in a given jobLookupWindow.
     """
     try:
         params = {
@@ -142,12 +116,41 @@ def get_jobs_list(
         }
         if job_filter:
             params["jobFilter"] = job_filter
+        if client_id:
+            params["clientId"] = client_id
         if offset is not None:
             params["offset"] = offset
         response = commvault_api_client.get("Job", params=params)
         return get_basic_job_details(response)
     except Exception as e:
         logger.error(f"Error retrieving jobs by job type: {e}")
+        return ToolError({"error": str(e)})
+    
+@mcp.tool()
+def get_failed_jobs(
+    jobLookupWindow: Annotated[int, Field(description="The time window in seconds to look up for jobs. For example, 86400 for the last 24 hours.")]=86400,
+    limit: Annotated[int, Field(description="The maximum number of jobs to return. Default is 50.")] = 50,
+    offset: Annotated[int, Field(description="The offset for pagination.")] = 0) -> dict:
+    """
+    Gets the list of failed jobs in a given jobLookupWindow.
+    """
+    try:
+        payload = {
+            "category": 0,
+            "pagingConfig": {
+                "offset": offset,
+                "limit": limit
+            },
+            "jobFilter": {
+                "completedJobLookupTime": jobLookupWindow,
+                "showAgedJobs": False,
+                "statusList": ["Failed"]
+            }
+        }
+        response = commvault_api_client.post("Jobs", data=payload)
+        return get_basic_job_details(response)
+    except Exception as e:
+        logger.error(f"Error retrieving failed jobs: {e}")
         return ToolError({"error": str(e)})
 
 @mcp.tool()
@@ -223,6 +226,20 @@ def get_security_score():
         logger.error(f"Error retrieving security score: {e}")
         return ToolError({"error": str(e)})
 
+@mcp.tool()
+def get_storage_space_utilization():
+    """
+    Retrieves storage space utilization or the amount of data that is in all disk or cloud libraries, and the percentage of storage space that was saved because of compression and deduplication.
+    Returns:
+        A dictionary containing information about the storage space utilization.
+    """
+    try:
+        api_response = commvault_api_client.get("cr/reportsplusengine/datasets/2b366703-52e1-4775-8047-1f4cfa13d2db/data?cache=true&parameter.i_dashboardtype=commcell&orderby='date to be full'&datasource=2")
+        return format_report_dataset_response(api_response)
+    except Exception as e:
+        logger.error(f"Error retrieving storage space utilization: {e}")
+        return ToolError({"error": str(e)})
+
 ##################################################
 
 ###### CLIENT MANAGEMENT TOOLS ######
@@ -237,6 +254,18 @@ def get_client_group_list() -> dict:
         return get_basic_client_group_details(response)
     except Exception as e:
         logger.error(f"Error retrieving client group list: {e}")
+        return ToolError({"error": str(e)})
+    
+@mcp.tool()
+def get_client_list() -> dict:
+    """
+    Gets the list of clients.
+    """
+    try:
+        response = commvault_api_client.get("Client")
+        return filter_client_list_response(response)
+    except Exception as e:
+        logger.error(f"Error retrieving client list: {e}")
         return ToolError({"error": str(e)})
 
 @mcp.tool()
@@ -300,6 +329,54 @@ def get_subclient_properties(subclient_id: Annotated[str, Field(description="The
         return ToolError({"error": str(e)})
 
 ##################################################
+
+
+###### SCHEDULE POLICY MANAGEMENT TOOLS ######
+
+@mcp.tool()
+def get_schedules_list() -> dict:
+    """
+    Gets the list of schedules (filtered for relevant information).
+    """
+    try:
+        response = commvault_api_client.get("Schedules")
+        return filter_schedules_response(response)
+    except Exception as e:
+        logger.error(f"Error retrieving schedule list: {e}")
+        return ToolError({"error": str(e)})
+    
+@mcp.tool()
+def get_schedule_properties(schedule_id: Annotated[str, Field(description="The schedule id to retrieve properties for.")]) -> dict:
+    """
+    Gets properties for a given schedule id.
+    """
+    try:
+        return commvault_api_client.get(f"Schedule/{schedule_id}")
+    except Exception as e:
+        logger.error(f"Error retrieving schedule properties: {e}")
+        return ToolError({"error": str(e)})
+    
+@mcp.tool()
+def enable_schedule(schedule_id: Annotated[str, Field(description="The schedule id to enable.")]) -> dict:
+    """
+    Enables a schedule with the given schedule id.
+    """
+    try:
+        return commvault_api_client.post(f"/Schedules/task/Action/Enable", data={"taskId": schedule_id})
+    except Exception as e:
+        logger.error(f"Error enabling schedule: {e}")
+        return ToolError({"error": str(e)})
+    
+@mcp.tool()
+def disable_schedule(schedule_id: Annotated[str, Field(description="The schedule id to disable.")]) -> dict:
+    """
+    Disables a schedule with the given schedule id.
+    """
+    try:
+        return commvault_api_client.post(f"/Schedules/task/Action/Disable", data={"taskId": schedule_id})
+    except Exception as e:
+        logger.error(f"Error disabling schedule: {e}")
+        return ToolError({"error": str(e)})
 
 ###### STORAGE POLICY MANAGEMENT TOOLS ######
 
@@ -570,6 +647,56 @@ def create_send_logs_job_for_a_job(emailid: Annotated[str, Field(description="Th
         return commvault_api_client.post("createtask", data=data)
     except Exception as e:
         logger.error(f"Error creating send logs job for job: {e}")
+        return ToolError({"error": str(e)})
+
+@mcp.tool()
+def get_users_list() -> dict:
+    """
+    Gets the list of users in the CommCell.
+    Returns:
+        A dictionary containing the list of users.
+    """
+    try:
+        response = commvault_api_client.get("v4/user")
+        return filter_users_response(response)
+    except Exception as e:
+        logger.error(f"Error retrieving user list: {e}")
+        return ToolError({"error": str(e)})
+    
+@mcp.tool()
+def get_user_properties(user_id: Annotated[str, Field(description="The user id to retrieve properties for.")]) -> dict:
+    """
+    Gets properties for a given user id.
+    """
+    try:
+        return commvault_api_client.get(f"v4/user/{user_id}")
+    except Exception as e:
+        logger.error(f"Error retrieving user properties: {e}")
+        return ToolError({"error": str(e)})
+    
+@mcp.tool()
+def get_user_groups_list() -> dict:
+    """
+    Gets the list of user groups in the CommCell.
+    Returns:
+        A dictionary containing the list of user groups.
+    """
+    try:
+        response = commvault_api_client.get("v4/usergroup")
+        return filter_user_groups_response(response)
+    except Exception as e:
+        logger.error(f"Error retrieving user group list: {e}")
+        return ToolError({"error": str(e)})
+
+@mcp.tool()
+def get_user_group_properties(user_group_id: Annotated[str, Field(description="The user group id to retrieve properties for.")]) -> dict:
+    """
+    Gets properties for a given user group id.
+    """
+    try:
+        return commvault_api_client.get(f"v4/usergroup/{user_group_id}")
+    except Exception as e:
+        logger.error(f"Error retrieving user group properties: {e}")
         return ToolError({"error": str(e)})
 
 

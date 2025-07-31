@@ -164,3 +164,77 @@ def compute_security_score(api_response):
         raise Exception("Some error occurred. Please try again later.")
     failures = sum(1 for p in params if p.get("status") == 2)
     return round((total - failures) / total * 100)
+
+def filter_client_list_response(response):
+    """
+    Filters the client list response to return only clientName, clientId, displayName, hostName, clientGUID, and companyId.
+    """
+    filtered_clients = []
+    for item in response.get("clientProperties", []):
+        client_entity = item.get("client", {}).get("clientEntity", {})
+        entity_info = client_entity.get("entityInfo", {})
+        filtered_clients.append({
+            "clientName": client_entity.get("clientName"),
+            "clientId": client_entity.get("clientId"),
+            "hostName": client_entity.get("hostName")
+        })
+    return {"clients": filtered_clients}
+
+def filter_schedules_response(response):
+    """
+    Filters the schedules API response to return only relevant information with LLM-friendly key names.
+    """
+    schedules = []
+    for item in response.get("taskDetail", []):
+        task = item.get("task", {})
+        sub_tasks = item.get("subTasks", [])
+        filtered_subtasks = []
+        for sub in sub_tasks:
+            sub_task = sub.get("subTask", {})
+            filtered_subtasks.append({
+                "scheduleName": sub_task.get("subTaskName"),
+                "scheduleId": sub_task.get("subTaskId"),
+                "operationType": sub_task.get("operationType"),
+                "nextRunTime": sub.get("nextScheduleTime"),
+            })
+
+        # Only add if "policyName" does not contain "System Created"
+        policy_name = task.get("taskName", "")
+        description = task.get("description", "")
+        if "system created" not in policy_name.lower() and "system created" not in description.lower():
+            schedules.append({
+            "policyName": policy_name,
+            "policyId": task.get("taskId"),
+            "description": description,
+            "schedules": filtered_subtasks,
+            })
+    return {"totalPolicies": len(schedules), "policies": schedules}
+
+def filter_users_response(response):
+    """
+    Filters the users API response to return only relevant, LLM-friendly information.
+    """
+    users = []
+    for user in response.get("users", []):
+        users.append({
+            "userId": user.get("id"),
+            "userName": user.get("name"),
+            "email": user.get("email"),
+            "fullName": user.get("fullName"),
+            "lastLoginTime": user.get("lastLoggedIn"),
+            "companyId": user.get("company", {}).get("id")
+        })
+    return {"totalUsers": response.get("numberOfUsers", len(users)), "users": users}
+
+def filter_user_groups_response(response):
+    """
+    Filters the user groups API response to return only relevant, LLM-friendly information.
+    """
+    user_groups = []
+    for group in response.get("userGroups", []):
+        user_groups.append({
+            "userGroupId": group.get("id"),
+            "userGroupName": group.get("name"),
+            "companyId": group.get("company", {}).get("id")
+        })
+    return {"totalUserGroups": response.get("numberOfUserGroups", len(user_groups)), "userGroups": user_groups}
