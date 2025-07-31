@@ -716,6 +716,31 @@ def get_user_group_properties(user_group_id: Annotated[str, Field(description="T
         logger.error(f"Error retrieving user group properties: {e}")
         return ToolError({"error": str(e)})
 
+@mcp.tool()
+def set_user_group_assignment(
+    user_id: Annotated[str, Field(description="The user id to assign to the user group.")], 
+    user_group_id: Annotated[str, Field(description="The user group id to assign the user to.")], 
+    assign: Annotated[bool, Field(description="Set to True to assign the user to the group, False to remove the user from the group.")]=True
+    ) -> dict:
+    """
+    Assigns or removes a user from a user group based on the 'assign' flag.
+    Set assign=True to add the user to the group, or assign=False to remove the user from the group.
+    """
+    try:
+        operation = "ADD" if assign else "DELETE"
+        payload = {
+            "userGroupOperation": operation,
+            "userGroups": [
+                {
+                    "id": user_group_id
+                }
+            ],
+        }
+        return commvault_api_client.put(f"/commandcenter/proxy/v4/user/{user_id}", data=payload)
+    except Exception as e:
+        logger.error(f"Error assigning user {user_id} to user group {user_group_id}: {e}")
+        return ToolError({"error": str(e)})
+
 
 if __name__ == "__main__":
     mcp_transport_mode = get_env_var("MCP_TRANSPORT_MODE")
