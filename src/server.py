@@ -19,161 +19,17 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field
 
-import sys, os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from src.cv_api_client import CommvaultApiClient
-from src.wrappers import *
-from src.logger import logger
-from src.utils import get_env_var
+from cv_api_client import CommvaultApiClient
+from wrappers import *
+from logger import logger
+from utils import get_env_var
+from tools.job_tools import JOB_MANAGEMENT_TOOLS
 
 mcp = FastMCP(name="Commvault MCP Server", instructions="You can use this server to interact with Commvault Product")
 commvault_api_client = CommvaultApiClient()
 
-
-@mcp.tool()
-def get_job_detail(job_id: Annotated[int, Field(description="The ID of the job to retrieve.")],) -> dict:
-    """
-    Gets complete details about a job for a given job id.
-
-    Returns:
-        A dictionary containing all available information about the specified job.
-    """
-    try:
-        endpoint = f"Job/{job_id}"
-        jobs_list = commvault_api_client.get(endpoint).get("jobs", [])
-        if not jobs_list:
-            raise Exception(f"No job found with ID: {job_id}")
-        return jobs_list[0]
-    except Exception as e:
-        logger.error(f"Error getting job detail: {e}")
-        return ToolError({"error": str(e)})
-
-@mcp.tool()
-def suspend_job(job_id: Annotated[int, Field(description="The ID of the job to suspend.")]) -> dict:
-    """
-    Suspends/pauses the job with the given job id.
-    """
-    try:
-        endpoint = f"Job/{job_id}/Action/pause"
-        return commvault_api_client.post(endpoint, data={})
-    except Exception as e:
-        logger.error(f"Error suspending job: {e}")
-        return ToolError({"error": str(e)})
-    
-@mcp.tool()
-def resume_job(job_id: Annotated[int, Field(description="The ID of the job to resume.")]) -> dict:
-    """
-    Resumes the job with the given job id.
-    """
-    try:
-        endpoint = f"Job/{job_id}/Action/Resume"
-        return commvault_api_client.post(endpoint, data={})
-    except Exception as e:
-        logger.error(f"Error resuming job: {e}")
-        return ToolError({"error": str(e)})
-
-@mcp.tool()
-def resubmit_job(job_id: Annotated[int, Field(description="The ID of the job to resubmit.")]) -> dict:
-    """
-    Resubmits the job with the given job id.
-    """
-    try:
-        endpoint = f"Job/{job_id}/Action/Resubmit"
-        return commvault_api_client.post(endpoint, data={})
-    except Exception as e:
-        logger.error(f"Error resubmitting job: {e}")
-        return ToolError({"error": str(e)})
-
-@mcp.tool()
-def kill_job(job_id: Annotated[int, Field(description="The ID of the job to kill.")],) -> dict:
-    """
-    Kills the job with the given job id.
-    """
-    try:
-        endpoint = f"Job/{job_id}/Action/Kill"
-        return commvault_api_client.post(endpoint, data={})
-    except Exception as e:
-        logger.error(f"Error killing job: {e}")
-        return ToolError({"error": str(e)})
-
-@mcp.tool()
-def get_jobs_list(
-    jobLookupWindow: Annotated[int, Field(description="The time window in seconds to look up for jobs jobs. For example, 86400 for the last 24 hours.")]=86400,
-    job_filter: Annotated[str, Field(description="The job types to filter by. Multiple types can be provided, comma-separated. If not used, returns backup jobs. Valid values are: MAGLIBMAINTENANCE, SELECTIVEDELETE, ARCHIVERESTORE, MEDIAINIT, SEND_LOGFILE, AUXCOPY, MEDIAINVENTORY, SHELFMANAGEMENT, Backup, MEDIAPREDICTION, SNAPBACKUP, BACKUP3RD, BROWSEANDDELETE, MEDIARECYCLE, SNAPBACKUP3RD, CATALOG_MIGRATION, MEDIAREFRESHING, SNAPRECOVERY, CATALOGUEMEDIA, MEDIAREFRESHING2, SNAPSHOT, CCMCAPTURE, MININGBACKUP, SNAPTOTAPE, CCMMERGE, MININGCONTENTINDEX, SNAPTOTAPEWORKFLOW, COMMCELLSYNC, MOVE_MOUNT_PATH, SNAPVAULTRESTORE, CONTDATAREPLICATION, MOVEDDB, SPACE_RECLAMATION, CONTENT_INDEXING_ENTITY_EXTRACTION, MULTI_NODE_CONTENT_INDEXING, SRMAGENTLESSOPTYPE, CREATECONSISTENCYPOINT, OFFLINE, SRMOPTYPE, CREATERECOVERYPOINT, OFFLINE_MINING_RESTORE, SRMREPORT, CREATEREPLICA, OFFLINECONTENTINDEX, SRSYSTEMRECOVERY, CSDRBKP, ONLINE, STAMPMEDIA, CVEXPORT, Online_Content_Index, STATELESS_BACKUP, DATA_ANALYTICS, ONLINE_CRAWL, STUBBING, DATA_VERIFICATION, OPENBACKUP, SUBCLIENTCONTENTINDEX, DDBOPS, OTHERADMINOPERATION, SYNTHFULL, DEDUPDBSYNC, PATCHDOWNLOAD, SYSRECOVERYBACKUP, DEDUPDBSYNC_DASH, PATCHUPDATE, SYSSTATEBACKUP, DELAYEDCATALOG, POWERRESTORE, TAPE2TAPECOPY, DELAYEDCATALOGWORKFLOW, POWERSEARCHANDRETRIEVE, TAPEERASE, DMOUTLOOKRST, PRUNE, TAPEIMPORT, DRIVECLEANING, PST_ARCHIVING, TDFSBACKUP, DRIVEVALIDATION, QRCOPYBACK, TURBO_NAS, DRORCHESTRATION, QRROLLBACK, UNINSTALLCLIENT, EXCHANGE_IMPORT, QUICKDMRST, UPDATEREPLICA, EXCHANGE_LIVE_BROWSE_RST, RECOVERY_POINT_CREATION_RST, UPGRADE_CLIENT, FDCCLIENT, REFCOPYPSTARCHIVING, VIRTUALIZEME, FDCOPTYPE, REFERENCECOPY, VM_Management, FDCPREPARATION, REFERENCECOPYWORKFLOW, VSA_BLOCK_REPLICATION, FDCWORKFLOW, REPLICATION, VSA_BLOCK_REPLICATION_DRIVER_INSTALL, FLRCOPYBACK, REPORT, VSA_BLOCK_REPLICATION_DRIVER_UNINSTALL, IMPORT, Restore, VSA_BLOCK_REPLICATION_DRIVER_UPDATE, INDEXFREERESTORE, RESTORE_VALIDATE, W2KFULLBUILDRESTORE, INDEXRESTORE, SCHEDEXPORT, W2KFULLBUILDRESTORE371, INFOMGMT, SCHEDULE, W2KSYSSTRESTORE, INSTALLCLIENT, SEARCHANDRETRIEVE, WORKFLOW, LOG_MONITORING, SECUREERASE, WORKFLOW_MGMT.")]="", 
-    job_status: Annotated[str, Field(description="The job status to filter by. Valid values are: Active, Finished, All")] = "All", 
-    client_id: Annotated[str, Field(description="The client id to filter jobs by. Not mandatory. If not provided, jobs for all clients will be returned.")] = None,
-    limit: Annotated[int, Field(description="The maximum number of jobs to return. Default is 50.")] = 50,
-    offset: Annotated[int, Field(description="The offset for pagination.")] = 0) -> dict:
-    """
-    Gets the list of jobs filtered by job type/status/clientId in a given jobLookupWindow.
-    """
-    try:
-        params = {
-            "jobCategory": job_status,
-            "completedJobLookupTime": jobLookupWindow,
-            "limit": limit
-        }
-        if job_filter:
-            params["jobFilter"] = job_filter
-        if client_id:
-            params["clientId"] = client_id
-        if offset is not None:
-            params["offset"] = offset
-        response = commvault_api_client.get("Job", params=params)
-        return get_basic_job_details(response)
-    except Exception as e:
-        logger.error(f"Error retrieving jobs by job type: {e}")
-        return ToolError({"error": str(e)})
-    
-@mcp.tool()
-def get_failed_jobs(
-    jobLookupWindow: Annotated[int, Field(description="The time window in seconds to look up for jobs. For example, 86400 for the last 24 hours.")]=86400,
-    limit: Annotated[int, Field(description="The maximum number of jobs to return. Default is 50.")] = 50,
-    offset: Annotated[int, Field(description="The offset for pagination.")] = 0) -> dict:
-    """
-    Gets the list of failed jobs in a given jobLookupWindow.
-    """
-    try:
-        payload = {
-            "category": 0,
-            "pagingConfig": {
-                "offset": offset,
-                "limit": limit
-            },
-            "jobFilter": {
-                "completedJobLookupTime": jobLookupWindow,
-                "showAgedJobs": False,
-                "statusList": ["Failed"]
-            }
-        }
-        response = commvault_api_client.post("Jobs", data=payload)
-        return get_basic_job_details(response)
-    except Exception as e:
-        logger.error(f"Error retrieving failed jobs: {e}")
-        return ToolError({"error": str(e)})
-
-@mcp.tool()
-def get_job_task_details(job_id: Annotated[int, Field(description="The job id to retrieve task details for.")]) -> dict:
-    """
-    Gets task details for a given job ID.
-    """
-    try:
-        return commvault_api_client.get(f"Job/{job_id}/taskdetails")
-    except Exception as e:
-        logger.error(f"Error retrieving job task details: {e}")
-        return ToolError({"error": str(e)})
-
-@mcp.tool()
-def get_retention_info_of_a_job(job_id: Annotated[int, Field(description="The job id to retrieve retention info for.")]) -> dict:
-    """
-    Gets retention info for a given job ID.
-    """
-    try:
-        return commvault_api_client.get(f"Job/{job_id}/advanceddetails", params={"infoType": 1})
-    except Exception as e:
-        logger.error(f"Error retrieving retention info: {e}")
-        return ToolError({"error": str(e)})
+for tool in JOB_MANAGEMENT_TOOLS:
+    mcp.add_tool(tool)
 
 ##################################################
 

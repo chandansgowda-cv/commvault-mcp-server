@@ -21,9 +21,9 @@ from urllib.parse import urljoin
 import time
 from dotenv import load_dotenv
 
-from src.auth_service import AuthService
-from src.logger import logger
-from src.utils import get_env_var
+from auth_service import AuthService
+from logger import logger
+from utils import get_env_var
 
 load_dotenv()
 
@@ -187,3 +187,5 @@ class CommvaultApiClient:
              params: Optional[Dict[str, Any]] = None, headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """Make a PUT request to the API."""
         return self.request("PUT", endpoint, params=params, data=data, headers=headers)
+
+commvault_api_client = CommvaultApiClient()
