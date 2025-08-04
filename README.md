@@ -10,32 +10,18 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.org/) server for i
 
 ## Features
 
-- Fetch job history (Active / All / Last 24 hours)
-- Retrieve Security Posture and Score
-- Retrieve Service Level Agreement (SLA) Status
-- More coming soon...
+The Commvault MCP Server enables seamless integration with Commvault environments, offering the following:
 
+| Category | Features |
+|----------|----------|
+| **Job Management** | • View job details and history<br>• Control jobs (suspend, resume, resubmit, kill)<br>• Monitor job status and performance |
+| **Commcell Management** | • Retrieve SLA status and compliance<br>• View security posture and scores<br>• Access storage space utilization metrics<br>• Get commcell details and entity counts |
+| **Client Management** | • Access client groups and client information<br>• Manage subclients and client properties<br>• View client associations |
+| **Storage Management** | • View storage policies and configurations<br>• Access storage pool information<br>• Monitor storage resources |
+| **User Management** | • List users and user groups<br>• Access security associations<br>• Manage user permissions |
+| **Plan Management** | • View plan configurations and details<br>• Access plan components and settings |
+| **Schedule Management** | • Access backup schedules<br>• View schedule configurations<br>• Monitor schedule performance |
 
-## Setup
-
-### 1. Clone the repository
-
-```bash
-git clone <repository-url>
-cd commvault-mcp-server
-```
-
-### 2. Run the Setup Script
-
-```bash
-uv run setup.py
-```
-
-### 2. Run the MCP Server
-
-```bash
-uv run src/server.py
-```
 
 ## Prerequisites
 
@@ -57,6 +43,28 @@ The following values will be collected during the setup process:
 * **Secret Key:**
   This secret must be included by the **MCP Client** in the `Authorization` header of all tool requests.
   It acts as a security layer for tool access in remote server. You can set your own. 
+
+
+## Setup
+
+### 1. Clone the repository
+
+```bash
+git clone <repository-url>
+cd commvault-mcp-server
+```
+
+### 2. Run the Setup Script
+
+```bash
+uv run setup.py
+```
+
+### 3. Run the MCP Server
+
+```bash
+uv run src/server.py
+```
 
 
 ## Configuring Clients
