@@ -174,7 +174,83 @@ def get_retention_info_of_a_job(job_id: Annotated[int, Field(description="The jo
     except Exception as e:
         logger.error(f"Error retrieving retention info: {e}")
         return ToolError({"error": str(e)})
+
+def create_send_logs_job_for_a_job(emailid: Annotated[str, Field(description="The email id to send logs to.")], job_id: Annotated[int, Field(description="The job id for which to send logs.")]) -> dict:
+    """
+    Triggers a new send logs job for the specified job ID and sends logs to the provided email address.
+    If successful, returns the job ID of the created send logs job.
+    """
+    try:
+        data = {
+            "taskInfo": {
+                "task": {
+                    "taskType": 1,
+                    "initiatedFrom": 1,
+                    "policyType": 0,
+                    "taskFlags": {"disabled": False}
+                },
+                "subTasks": [
+                    {
+                        "subTask": {"subTaskType": 1, "operationType": 5010},
+                        "options": {
+                            "adminOpts": {
+                                "sendLogFilesOption": {
+                                    "actionLogsEndJobId": 0,
+                                    "emailSelected": True,
+                                    "jobid": job_id,
+                                    "tsDatabase": False,
+                                    "galaxyLogs": True,
+                                    "getLatestUpdates": False,
+                                    "actionLogsStartJobId": 0,
+                                    "computersSelected": False,
+                                    "csDatabase": False,
+                                    "otherDatabases": False,
+                                    "crashDump": False,
+                                    "isNetworkPath": False,
+                                    "saveToFolderSelected": False,
+                                    "notifyMe": True,
+                                    "includeJobResults": False,
+                                    "doNotIncludeLogs": True,
+                                    "machineInformation": True,
+                                    "scrubLogFiles": False,
+                                    "emailSubject": f"Job {job_id} : Send Logs",
+                                    "osLogs": True,
+                                    "allUsersProfile": True,
+                                    "splitFileSizeMB": 512,
+                                    "actionLogs": False,
+                                    "includeIndex": False,
+                                    "databaseLogs": True,
+                                    "includeDCDB": False,
+                                    "collectHyperScale": False,
+                                    "logFragments": False,
+                                    "uploadLogsSelected": True,
+                                    "useDefaultUploadOption": True,
+                                    "enableChunking": True,
+                                    "collectRFC": False,
+                                    "collectUserAppLogs": False,
+                                    "impersonateUser": {"useImpersonation": False},
+                                    "clients": [
+                                        {"clientId": 0, "clientName": "null"}
+                                    ],
+                                    "recipientCc": {
+                                        "emailids": [emailid],
+                                        "users": [],
+                                        "userGroups": []
+                                    },
+                                    "sendLogsOnJobCompletion": False
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+        return commvault_api_client.post("createtask", data=data)
+    except Exception as e:
+        logger.error(f"Error creating send logs job for job: {e}")
+        return ToolError({"error": str(e)})
     
+
 JOB_MANAGEMENT_TOOLS = [
     get_job_detail,
     suspend_job,
@@ -184,5 +260,6 @@ JOB_MANAGEMENT_TOOLS = [
     get_jobs_list,
     get_failed_jobs,
     get_job_task_details,
-    get_retention_info_of_a_job
+    get_retention_info_of_a_job,
+    create_send_logs_job_for_a_job
 ]
