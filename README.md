@@ -10,10 +10,39 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.org/) server for i
 
 ## Features
 
-- Fetch job history (Active / All / Last 24 hours)
-- Retrieve Security Posture and Score
-- Retrieve Service Level Agreement (SLA) Status
-- More coming soon...
+The Commvault MCP Server enables seamless integration with Commvault environments, offering the following:
+
+| Category | Features |
+|----------|----------|
+| **Job Management** | • View job details and history<br>• Control jobs (suspend, resume, resubmit, kill)<br>• Monitor job status and performance |
+| **Commcell Management** | • Retrieve SLA status and compliance<br>• View security posture and scores<br>• Access storage space utilization metrics<br>• Get commcell details and entity counts |
+| **Client Management** | • Access client groups and client information<br>• Manage subclients and client properties<br>• View client associations |
+| **Storage Management** | • View storage policies and configurations<br>• Access storage pool information<br>• Monitor storage resources |
+| **User Management** | • List users and user groups<br>• Access security associations<br>• Manage user permissions |
+| **Plan Management** | • View plan configurations and details<br>• Access plan components and settings |
+| **Schedule Management** | • Access backup schedules<br>• View schedule configurations<br>• Monitor schedule performance |
+
+
+## Prerequisites
+
+Before running the Commvault MCP Server, ensure the following requirements are met:
+
+### 1. Python Environment
+
+* Python 3.11 or higher
+* [`uv`](https://github.com/astral-sh/uv) package manager (used for dependency management and running the server)
+
+### 2. Authentication & Security Configuration
+
+The following values will be collected during the setup process:
+
+* **Commvault Access Credentials:**
+  You need a valid `access_token` and `refresh_token` to authenticate with the Commvault API.
+  Learn how to generate these tokens here: [Creating an Access Token – Commvault Docs](https://documentation.commvault.com/11.38/expert/creating_access_token.html)
+  
+* **Secret Key:**
+  This secret must be included by the **MCP Client** in the `Authorization` header of all tool requests.
+  It acts as a security layer for tool access in remote server. You can set your own. 
 
 
 ## Setup
@@ -36,27 +65,6 @@ uv run setup.py
 ```bash
 uv run src/server.py
 ```
-
-## Prerequisites
-
-Before running the Commvault MCP Server, ensure the following requirements are met:
-
-### 1. Python Environment
-
-* Python 3.11 or higher
-* [`uv`](https://github.com/astral-sh/uv) package manager (used for dependency management and running the server)
-
-### 2. Authentication & Security Configuration
-
-The following values will be collected during the setup process:
-
-* **Commvault Access Credentials:**
-  You need a valid `access_token` and `refresh_token` to authenticate with the Commvault API.
-  Learn how to generate these tokens here: [Creating an Access Token – Commvault Docs](https://documentation.commvault.com/11.38/expert/creating_access_token.html)
-  
-* **Secret Key:**
-  This secret must be included by the **MCP Client** in the `Authorization` header of all tool requests.
-  It acts as a security layer for tool access in remote server. You can set your own. 
 
 
 ## Configuring Clients
