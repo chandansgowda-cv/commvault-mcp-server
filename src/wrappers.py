@@ -238,3 +238,34 @@ def filter_user_groups_response(response):
             "companyId": group.get("company", {}).get("id")
         })
     return {"totalUserGroups": response.get("numberOfUserGroups", len(user_groups)), "userGroups": user_groups}
+
+def filter_security_associations_response(api_response):
+    """
+    Filters the security associations response to return only relevant, LLM-friendly information.
+    """
+    filtered = []
+    for assoc in api_response.get("associations", []):
+        entity_list = assoc.get("entities", {}).get("entity", [])
+        entities = []
+        for ent in entity_list:
+            # Only keep keys that are not internal metadata (no _type_, no flags unless needed)
+            entity = {k: v for k, v in ent.items() if not k.startswith("_") and k != "flags"}
+            # If 'flags' contains 'includeAll', keep it
+            if "flags" in ent and ent["flags"].get("includeAll"):
+                entity["includeAll"] = True
+            entities.append(entity)
+        properties = assoc.get("properties", {})
+        filtered_assoc = {"entities": entities}
+        # Only keep relevant properties
+        if "isCreatorAssociation" in properties:
+            filtered_assoc["isCreatorAssociation"] = properties["isCreatorAssociation"]
+        if "role" in properties:
+            role = properties["role"]
+            filtered_assoc["role"] = {k: v for k, v in role.items() if k in ["roleId", "roleName", "disabled"] or (k == "flags" and role.get("flags", {}).get("disabled")) }
+        if "categoryPermission" in properties:
+            filtered_assoc["categoryPermission"] = [
+                {k: v for k, v in perm.items() if k in ["permissionName", "permissionId"]}
+                for perm in properties["categoryPermission"].get("categoriesPermissionList", [])
+            ]
+        filtered.append(filtered_assoc)
+    return {"associations": filtered}
