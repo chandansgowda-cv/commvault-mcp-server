@@ -47,7 +47,7 @@ def register_tools(mcp_server: FastMCP, tool_categories: List[List[Callable]]) -
     logger.info(f"Successfully registered {total_tools} tools across {len(tool_categories)} categories")
 
 
-def get_server_config() -> dict:
+def get_server_config():
     return ConfigManager.load_config()
 
 

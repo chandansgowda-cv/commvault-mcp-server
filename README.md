@@ -60,7 +60,7 @@ cd commvault-mcp-server
 uv run setup.py
 ```
 
-### 2. Run the MCP Server
+### 3. Run the MCP Server
 
 ```bash
 uv run src/server.py
