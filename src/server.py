@@ -54,8 +54,8 @@ def get_server_config():
 def run_server() -> None:
     try:
         mcp = create_mcp_server()
-        register_tools(mcp, ALL_TOOL_CATEGORIES)
         config = get_server_config()
+        register_tools(mcp, ALL_TOOL_CATEGORIES)
         
         logger.info(f"Starting MCP server in {config.transport_mode} mode...")
         
