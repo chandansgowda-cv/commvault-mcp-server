@@ -26,9 +26,9 @@ from typing import List, Callable
 
 from fastmcp import FastMCP
 
-from config import ConfigManager, SERVER_NAME, SERVER_INSTRUCTIONS
-from tools import ALL_TOOL_CATEGORIES
-from logger import logger
+from src.config import ConfigManager, SERVER_NAME, SERVER_INSTRUCTIONS
+from src.tools import ALL_TOOL_CATEGORIES
+from src.logger import logger
 
 
 def create_mcp_server() -> FastMCP:

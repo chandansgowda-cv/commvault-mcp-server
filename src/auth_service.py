@@ -19,7 +19,7 @@ import keyring
 import sys
 from fastmcp.server.dependencies import get_http_request
 
-from logger import logger
+from src.logger import logger
 
 
 class AuthService:

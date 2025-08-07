@@ -25,8 +25,8 @@ import sys
 from dataclasses import dataclass
 from typing import Optional
 
-from logger import logger
-from utils import get_env_var
+from src.logger import logger
+from src.utils import get_env_var
 
 
 @dataclass
