@@ -18,9 +18,9 @@ from fastmcp.exceptions import ToolError
 from typing import Annotated
 from pydantic import Field
 
-from cv_api_client import commvault_api_client
-from logger import logger
-from wrappers import get_basic_job_details
+from src.cv_api_client import commvault_api_client
+from src.logger import logger
+from src.wrappers import get_basic_job_details
 
 
 def get_job_detail(job_id: Annotated[int, Field(description="The ID of the job to retrieve.")],) -> dict:

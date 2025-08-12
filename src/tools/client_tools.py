@@ -18,9 +18,9 @@ from fastmcp.exceptions import ToolError
 from typing import Annotated
 from pydantic import Field
 
-from cv_api_client import commvault_api_client
-from logger import logger
-from wrappers import filter_client_list_response, filter_subclient_response, get_basic_client_group_details
+from src.cv_api_client import commvault_api_client
+from src.logger import logger
+from src.wrappers import filter_client_list_response, filter_subclient_response, get_basic_client_group_details
 
 
 def get_client_group_list() -> dict:

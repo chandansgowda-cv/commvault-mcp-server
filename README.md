@@ -63,7 +63,7 @@ uv run setup.py
 ### 3. Run the MCP Server
 
 ```bash
-uv run src/server.py
+uv run -m src.server
 ```
 
 

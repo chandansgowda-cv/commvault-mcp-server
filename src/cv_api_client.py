@@ -21,9 +21,9 @@ from urllib.parse import urljoin
 import time
 from dotenv import load_dotenv
 
-from auth_service import AuthService
-from logger import logger
-from utils import get_env_var
+from src.auth_service import AuthService
+from src.logger import logger
+from src.utils import get_env_var
 
 load_dotenv()
 

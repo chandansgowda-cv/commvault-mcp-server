@@ -18,8 +18,8 @@ from fastmcp.exceptions import ToolError
 from typing import Annotated
 from pydantic import Field
 
-from cv_api_client import commvault_api_client
-from logger import logger
+from src.cv_api_client import commvault_api_client
+from src.logger import logger
 
 
 def get_plan_list() -> dict:

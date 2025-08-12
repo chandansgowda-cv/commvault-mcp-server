@@ -14,7 +14,7 @@
 # limitations under the License.
 # --------------------------------------------------------------------------
 
-from logger import logger
+from src.logger import logger
 
 
 def get_basic_job_details(api_response):
