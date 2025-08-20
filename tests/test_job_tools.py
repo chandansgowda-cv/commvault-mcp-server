@@ -62,7 +62,7 @@ async def test_suspend_job(mcp_server):
         # Only run test if we found a valid active job ID
         if job_id:
             result = await client.call_tool("suspend_job", {"job_id": job_id, "reason": "maintenance"})
-            assert "error" not in result[0].text.lower() or "success" in result[0].text.lower()
+            assert "error" not in result[0].text.lower()
         else:
             # Skip test if no active jobs found
             assert True, "No active jobs found to test with"
