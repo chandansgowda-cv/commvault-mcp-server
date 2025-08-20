@@ -9,7 +9,7 @@ def is_real_error(data):
 async def test_get_sla_status(mcp_server):
     async with Client(mcp_server) as client:
         result = await client.call_tool("get_sla_status", {})
-        if isinstance(result, list) and hasattr(result[0], "text"):
+        if isinstance(result, list) and len(result) > 0 and hasattr(result[0], "text"):
             data = json.loads(result[0].text)
             assert not is_real_error(data)
         else:
