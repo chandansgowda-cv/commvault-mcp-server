@@ -29,7 +29,7 @@ async def test_get_user_properties(mcp_server):
         # Only run test if we found a valid user ID
         if user_id:
             result = await client.call_tool("get_user_properties", {"user_id": user_id})
-            assert "error" not in result[0].text.lower() or isinstance(result, dict)
+            assert (len(result) > 0 and hasattr(result[0], 'text') and "error" not in result[0].text.lower()) or isinstance(result, dict)
         else:
             # Skip test if no users found
             assert True, "No users found to test with"
