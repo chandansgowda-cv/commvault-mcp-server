@@ -25,7 +25,9 @@ async def test_get_plan_properties(mcp_server):
                                 plan_id = str(plan_id)
                     elif isinstance(plans_data, list) and len(plans_data) > 0:
                         # Handle case where plans_data is directly a list
-                        plan_id = str(plans_data[0].get("planId"))
+                        plan_id = plans_data[0].get("planId")
+                        if plan_id:
+                            plan_id = str(plan_id)
                 except (json.JSONDecodeError, KeyError):
                     pass
         
