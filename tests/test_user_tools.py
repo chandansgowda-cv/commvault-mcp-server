@@ -4,7 +4,7 @@ import json
 async def test_get_users_list(mcp_server):
     async with Client(mcp_server) as client:
         result = await client.call_tool("get_users_list", {})
-        assert isinstance(result, list) or "error" not in result[0].text.lower()
+        assert isinstance(result, list) or (len(result) > 0 and hasattr(result[0], 'text') and "error" not in result[0].text.lower())
 
 async def test_get_user_properties(mcp_server):
     async with Client(mcp_server) as client:
