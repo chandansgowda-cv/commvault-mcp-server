@@ -18,7 +18,8 @@ async def test_get_schedule_properties(mcp_server):
                 try:
                     schedules_data = json.loads(schedules[0].text)
                     if isinstance(schedules_data, list) and len(schedules_data) > 0:
-                        schedule_id = str(schedules_data[0].get("taskId"))
+                        task_id = schedules_data[0].get("taskId")
+                        schedule_id = str(task_id) if task_id is not None else None
                     elif isinstance(schedules_data, dict) and "schedules" in schedules_data:
                         schedules_list = schedules_data["schedules"]
                         if isinstance(schedules_list, list) and len(schedules_list) > 0:
