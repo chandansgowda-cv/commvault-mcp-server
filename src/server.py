@@ -27,7 +27,7 @@ from typing import List, Callable
 from fastmcp import FastMCP
 
 from src.config import ConfigManager, SERVER_NAME, SERVER_INSTRUCTIONS
-from src.tools import ALL_TOOL_CATEGORIES
+from src.auth_validator import validate_auth_credentials_at_startup  # Import the validator
 from src.logger import logger
 
 
@@ -53,12 +53,22 @@ def get_server_config():
 
 def run_server() -> None:
     try:
-        mcp = create_mcp_server()
+        # Validate credentials FIRST, before any server setup
+        validate_auth_credentials_at_startup()
+        
+        # Import tools after credential validation to avoid circular imports
+        from src.tools import ALL_TOOL_CATEGORIES
+        
+        # Load config
         config = get_server_config()
+        
+        # Create server and register tools
+        mcp = create_mcp_server()
         register_tools(mcp, ALL_TOOL_CATEGORIES)
         
         logger.info(f"Starting MCP server in {config.transport_mode} mode...")
         
+        # Start the server (this is a blocking call)
         if config.transport_mode == "stdio":
             mcp.run(transport=config.transport_mode)
         else:
@@ -72,6 +82,9 @@ def run_server() -> None:
     except KeyboardInterrupt:
         logger.info("Server shutdown requested by user")
         sys.exit(0)
+    except SystemExit:
+        # Re-raise SystemExit from validation
+        raise
     except Exception as e:
         logger.error(f"Failed to start server: {e}")
         sys.exit(1)
