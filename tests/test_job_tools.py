@@ -34,7 +34,7 @@ async def test_get_job_detail(mcp_server):
         # Only run test if we found a valid job ID
         if job_id:
             result = await client.call_tool("get_job_detail", {"job_id": job_id})
-            assert "error" not in result[0].text.lower() or "job" in result[0].text.lower()
+            assert "error" not in result[0].text.lower()
         else:
             # Skip test if no jobs found
             assert True, "No jobs found to test with"
