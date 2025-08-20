@@ -20,7 +20,9 @@ async def test_get_plan_properties(mcp_server):
                     if isinstance(plans_data, dict) and "plans" in plans_data:
                         plans_list = plans_data["plans"]
                         if isinstance(plans_list, list) and len(plans_list) > 0:
-                            plan_id = str(plans_list[0].get("plan", {}).get("planId"))
+                            plan_id = plans_list[0].get("plan", {}).get("planId")
+                            if plan_id:
+                                plan_id = str(plan_id)
                     elif isinstance(plans_data, list) and len(plans_data) > 0:
                         # Handle case where plans_data is directly a list
                         plan_id = str(plans_data[0].get("planId"))
