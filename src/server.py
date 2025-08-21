@@ -27,6 +27,7 @@ from typing import List, Callable
 from fastmcp import FastMCP
 
 from src.config import ConfigManager, SERVER_NAME, SERVER_INSTRUCTIONS
+from src.tools import ALL_TOOL_CATEGORIES
 from src.auth_validator import validate_auth_credentials_at_startup  # Import the validator
 from src.logger import logger
 
