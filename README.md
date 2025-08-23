@@ -1,3 +1,5 @@
+[![MSeeP.ai Security Assessment Badge](https://mseep.net/pr/chandansgowda-cv-commvault-mcp-server-badge.png)](https://mseep.ai/app/chandansgowda-cv-commvault-mcp-server)
+
 # Commvault MCP Server
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
