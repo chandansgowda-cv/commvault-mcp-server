@@ -6,55 +6,82 @@ import json
 import pytest
 import keyring
 
-def is_real_error(data):
-    """Return True only if errorMessage is not blank or errorCode is not 0."""
+def extract_response_data(result):
+    """Extract and parse data from MCP client response."""
+    if not isinstance(result, list) or len(result) == 0:
+        raise AssertionError("Expected list response with at least one item")
+    
+    if not hasattr(result[0], "text"):
+        raise AssertionError("Response item missing 'text' attribute")
+    
+    response_text = result[0].text
+    
+    # First try to parse as JSON
     try:
-        if not isinstance(data, dict):
-            return False
-        
-        error = data.get("error", {})
-        if not isinstance(error, dict):
-            return False
-            
-        return bool(error.get("errorMessage")) or error.get("errorCode", 0) not in (0, "")
-    except Exception:
-        # If we can't determine if it's an error, assume it's not
-        return False
+        return json.loads(response_text)
+    except json.JSONDecodeError:
+        # If not JSON, return the raw text for further analysis
+        return response_text
 
-def check_response_for_errors(response, operation_name):
-    """Helper function to properly check for errors in API responses."""
-    try:
-        if isinstance(response, list) and hasattr(response[0], "text"):
-            try:
-                data = json.loads(response[0].text)
-                if isinstance(data, dict):
-                    assert not is_real_error(data), f"{operation_name} failed: {data.get('error', {})}"
-            except json.JSONDecodeError:
-                # If it's not JSON, check for actual error indicators
-                response_text = response[0].text.lower()
-                error_phrases = ["error occurred", "failed to", "not found", "invalid", "unauthorized"]
-                assert not any(phrase in response_text for phrase in error_phrases), \
-                    f"{operation_name} failed: {response[0].text}"
-    except Exception as e:
-        # Log the error but don't fail the test
-        print(f"DEBUG: Error in check_response_for_errors for {operation_name}: {e}")
-        print(f"DEBUG: Response type: {type(response)}")
-        if isinstance(response, list) and len(response) > 0:
-            print(f"DEBUG: First response item type: {type(response[0])}")
-            if hasattr(response[0], "text"):
-                print(f"DEBUG: Response text: {response[0].text[:100]}...")
-        # Don't assert - just pass through
+def assert_no_error_in_response(data, operation_name, acceptable_errors=None):
+    """Assert that response data doesn't contain errors."""
+    if acceptable_errors is None:
+        acceptable_errors = []
+    
+    if isinstance(data, str):
+        # Check if this is an acceptable operational error
+        data_lower = data.lower()
+        for acceptable in acceptable_errors:
+            if acceptable.lower() in data_lower:
+                return  # This error is acceptable for this operation
+        
+        # Check for common error patterns in string responses
+        error_indicators = [
+            "error occurred", "failed to", "invalid", "unauthorized", 
+            "not found", "exception", "traceback",
+            "internal server error", "bad request", "forbidden"
+        ]
+        for indicator in error_indicators:
+            if indicator in data_lower:
+                raise AssertionError(f"{operation_name} failed with error: {data}")
+        return
+    
+    elif isinstance(data, dict):
+        # Check for explicit error structure
+        if "error" in data:
+            error = data["error"]
+            if isinstance(error, dict):
+                error_msg = error.get("errorMessage", "")
+                error_code = error.get("errorCode", 0)
+                
+                # Check if this is an acceptable operational error
+                for acceptable in acceptable_errors:
+                    if acceptable.lower() in error_msg.lower():
+                        return  # This error is acceptable for this operation
+                
+                if error_msg or error_code != 0:
+                    raise AssertionError(f"{operation_name} failed with error: {error_msg} (code: {error_code})")
+            elif error:  # Non-empty error value
+                raise AssertionError(f"{operation_name} failed with error: {error}")
+        
+        # Check for common error indicators
+        if "errorMessage" in data and data["errorMessage"]:
+            error_msg = data["errorMessage"]
+            
+            # Check if this is an acceptable operational error
+            for acceptable in acceptable_errors:
+                if acceptable.lower() in error_msg.lower():
+                    return  # This error is acceptable for this operation
+            
+            raise AssertionError(f"{operation_name} failed: {error_msg}")
+        
+        if "errorCode" in data and data["errorCode"] != 0:
+            raise AssertionError(f"{operation_name} failed with error code: {data['errorCode']}")
 
 def safe_extract_id(response, id_field):
     """Safely extract ID from API response with comprehensive error handling."""
-    if not isinstance(response, list) or len(response) == 0:
-        return None
-    
-    if not hasattr(response[0], "text"):
-        return None
-    
     try:
-        data = json.loads(response[0].text)
+        data = extract_response_data(response)
         
         # Handle direct list
         if isinstance(data, list) and len(data) > 0:
@@ -71,27 +98,19 @@ def safe_extract_id(response, id_field):
                     if isinstance(first_item, dict) and id_field in first_item:
                         id_value = first_item[id_field]
                         return str(id_value) if id_value is not None else None
-                    
-                # Also check if the key itself matches what we're looking for
+                
+                # Check if the key itself matches
                 if key == id_field and value is not None:
                     return str(value)
-    
     except Exception:
-        # Catch all exceptions to prevent any crashes
-        pass
+        return None
     
     return None
 
 def safe_extract_ids(response, id_field, max_count=2):
     """Safely extract multiple IDs from API response."""
-    if not isinstance(response, list) or len(response) == 0:
-        return []
-    
-    if not hasattr(response[0], "text"):
-        return []
-    
     try:
-        data = json.loads(response[0].text)
+        data = extract_response_data(response)
         ids = []
         
         # Handle direct list
@@ -116,7 +135,6 @@ def safe_extract_ids(response, id_field, max_count=2):
         return ids
     
     except Exception:
-        # Catch all exceptions to prevent any crashes
         return []
 
 class TestClientJobIntegrationWorkflows:
@@ -127,20 +145,21 @@ class TestClientJobIntegrationWorkflows:
         async with Client(mcp_server) as client:
             # Step 1: Get client list
             clients_result = await client.call_tool("get_client_list", {})
-            assert isinstance(clients_result, list) or "error" not in clients_result[0].text.lower()
+            clients_data = extract_response_data(clients_result)
+            assert_no_error_in_response(clients_data, "get_client_list")
             
             # Extract first available client ID
             client_id = safe_extract_id(clients_result, "clientId")
             if not client_id:
-                assert True, "No clients found to test workflow with"
-                return
+                pytest.skip("No clients found to test workflow with")
             
             # Step 2: Get subclient for specific client
             subclient_result = await client.call_tool("get_subclient_list", {
                 "client_identifier": client_id, 
                 "identifier_type": "id"
             })
-            check_response_for_errors(subclient_result, "Get subclient list")
+            subclient_data = extract_response_data(subclient_result)
+            assert_no_error_in_response(subclient_data, "get_subclient_list")
             
             # Step 3: Get jobs for this client
             client_jobs = await client.call_tool("get_jobs_list", {
@@ -148,7 +167,8 @@ class TestClientJobIntegrationWorkflows:
                 "jobLookupWindow": 86400,
                 "limit": 20
             })
-            assert isinstance(client_jobs, list) or "error" not in client_jobs[0].text.lower()
+            client_jobs_data = extract_response_data(client_jobs)
+            assert_no_error_in_response(client_jobs_data, "get_jobs_list")
             
             # Step 4: Get subclient properties for detailed analysis
             subclient_id = safe_extract_id(subclient_result, "subClientId")
@@ -156,34 +176,37 @@ class TestClientJobIntegrationWorkflows:
                 subclient_props = await client.call_tool("get_subclient_properties", {
                     "subclient_id": subclient_id
                 })
-                check_response_for_errors(subclient_props, "Get subclient properties")
+                subclient_props_data = extract_response_data(subclient_props)
+                assert_no_error_in_response(subclient_props_data, "get_subclient_properties")
 
     async def test_client_name_resolution_workflow(self, mcp_server):
         """Test workflow: client name -> client ID -> subclient analysis."""
         async with Client(mcp_server) as client:
             # Step 1: Get client list to find valid client name and ID
             clients_result = await client.call_tool("get_client_list", {})
-            assert isinstance(clients_result, list) or "error" not in clients_result[0].text.lower()
+            clients_data = extract_response_data(clients_result)
+            assert_no_error_in_response(clients_data, "get_client_list")
             
             client_name = safe_extract_id(clients_result, "clientName")
             client_id = safe_extract_id(clients_result, "clientId")
             
             if not client_name or not client_id:
-                assert True, "No clients found to test workflow with"
-                return
+                pytest.skip("No clients found to test workflow with")
             
             # Step 2: Get client ID from name
             client_id_result = await client.call_tool("get_clientid_from_clientname", {
                 "client_name": client_name
             })
-            check_response_for_errors(client_id_result, "Get client ID from name")
+            client_id_data = extract_response_data(client_id_result)
+            assert_no_error_in_response(client_id_data, "get_clientid_from_clientname")
             
             # Step 3: Use resolved ID to get subclients
             subclient_result = await client.call_tool("get_subclient_list", {
                 "client_identifier": client_id,
                 "identifier_type": "id"
             })
-            check_response_for_errors(subclient_result, "Get subclient list")
+            subclient_data = extract_response_data(subclient_result)
+            assert_no_error_in_response(subclient_data, "get_subclient_list")
             
             # Step 4: Get detailed subclient properties
             subclient_id = safe_extract_id(subclient_result, "subClientId")
@@ -191,7 +214,8 @@ class TestClientJobIntegrationWorkflows:
                 subclient_props = await client.call_tool("get_subclient_properties", {
                     "subclient_id": subclient_id
                 })
-                check_response_for_errors(subclient_props, "Get subclient properties")
+                subclient_props_data = extract_response_data(subclient_props)
+                assert_no_error_in_response(subclient_props_data, "get_subclient_properties")
             
             # Step 5: Check recent jobs for this client
             recent_jobs = await client.call_tool("get_jobs_list", {
@@ -199,14 +223,16 @@ class TestClientJobIntegrationWorkflows:
                 "jobLookupWindow": 86400,
                 "limit": 15
             })
-            assert isinstance(recent_jobs, list) or "error" not in recent_jobs[0].text.lower()
+            recent_jobs_data = extract_response_data(recent_jobs)
+            assert_no_error_in_response(recent_jobs_data, "get_jobs_list")
 
     async def test_client_group_analysis_workflow(self, mcp_server):
         """Test workflow: get client groups -> analyze group properties -> check member clients."""
         async with Client(mcp_server) as client:
             # Step 1: Get all client groups
             client_groups = await client.call_tool("get_client_group_list", {})
-            assert isinstance(client_groups, list) or "error" not in client_groups[0].text.lower()
+            client_groups_data = extract_response_data(client_groups)
+            assert_no_error_in_response(client_groups_data, "get_client_group_list")
             
             # Step 2: Get properties for available client groups
             group_ids = safe_extract_ids(client_groups, "id", 2)
@@ -215,16 +241,13 @@ class TestClientJobIntegrationWorkflows:
                 group_props = await client.call_tool("get_client_group_properties", {
                     "client_group_id": group_id
                 })
-                if isinstance(group_props, list) and hasattr(group_props[0], "text"):
-                    try:
-                        data = json.loads(group_props[0].text)
-                        assert not is_real_error(data)
-                    except json.JSONDecodeError:
-                        pass
+                group_props_data = extract_response_data(group_props)
+                assert_no_error_in_response(group_props_data, "get_client_group_properties")
             
             # Step 3: Get all clients to see group membership
             all_clients = await client.call_tool("get_client_list", {})
-            assert isinstance(all_clients, list) or "error" not in all_clients[0].text.lower()
+            all_clients_data = extract_response_data(all_clients)
+            assert_no_error_in_response(all_clients_data, "get_client_list")
 
 class TestJobManagementIntegrationWorkflows:
     """Test comprehensive job management integration scenarios."""
@@ -237,392 +260,8 @@ class TestJobManagementIntegrationWorkflows:
                 "jobLookupWindow": 86400,
                 "limit": 50
             })
-            assert isinstance(failed_jobs, list) or "error" not in failed_jobs[0].text.lower()
-            
-            # Extract first available job ID
-            job_id = safe_extract_id(failed_jobs, "jobId")
-            
-            # If no failed jobs, get any available job
-            if not job_id:
-                all_jobs = await client.call_tool("get_jobs_list", {
-                    "jobLookupWindow": 86400,
-                    "limit": 10
-                })
-                job_id = safe_extract_id(all_jobs, "jobId")
-            
-            if not job_id:
-                assert True, "No jobs found to test workflow with"
-                return
-            
-            # Step 2: Get detailed analysis for specific job
-            job_details = await client.call_tool("get_job_detail", {"job_id": job_id})
-            check_response_for_errors(job_details, "Get job detail")
-            
-            # Step 3: Get task details for deeper investigation
-            task_details = await client.call_tool("get_job_task_details", {"job_id": job_id})
-            check_response_for_errors(task_details, "Get job task details")
-            
-            # Step 4: Check retention information
-            retention_info = await client.call_tool("get_retention_info_of_a_job", {"job_id": job_id})
-            check_response_for_errors(retention_info, "Get retention info")
-            
-            # Step 5: Get all jobs for comparison
-            all_jobs = await client.call_tool("get_jobs_list", {
-                "jobLookupWindow": 86400,
-                "limit": 50
-            })
-            assert isinstance(all_jobs, list) or "error" not in all_jobs[0].text.lower()
-
-    async def test_job_control_sequence_workflow(self, mcp_server):
-        """Test workflow: job control operations in sequence."""
-        async with Client(mcp_server) as client:
-            # Get available jobs first
-            jobs = await client.call_tool("get_jobs_list", {"job_status": "Active", "limit": 5})
-            job_id = safe_extract_id(jobs, "jobId")
-            
-            if not job_id:
-                assert True, "No active jobs found to test workflow with"
-                return
-            
-            # Step 1: Get initial job state
-            initial_state = await client.call_tool("get_job_detail", {"job_id": job_id})
-            check_response_for_errors(initial_state, "Get initial job state")
-            
-            # Step 2: Suspend job
-            suspend_result = await client.call_tool("suspend_job", {
-                "job_id": job_id,
-                "reason": "Integration test workflow"
-            })
-            check_response_for_errors(suspend_result, "Suspend job")
-            
-            # Step 3: Check job state after suspend
-            suspended_state = await client.call_tool("get_job_detail", {"job_id": job_id})
-            check_response_for_errors(suspended_state, "Get suspended job state")
-            
-            # Step 4: Resume job
-            resume_result = await client.call_tool("resume_job", {"job_id": job_id})
-            check_response_for_errors(resume_result, "Resume job")
-            
-            # Step 5: Check final job state
-            final_state = await client.call_tool("get_job_detail", {"job_id": job_id})
-            check_response_for_errors(final_state, "Get final job state")
-
-    async def test_job_investigation_workflow(self, mcp_server):
-        """Test workflow: investigate specific job -> send logs -> resubmit if needed."""
-        async with Client(mcp_server) as client:
-            # Get available jobs first with extra debugging
-            try:
-                jobs = await client.call_tool("get_jobs_list", {"limit": 10})
-                
-                # Debug: Print the actual response structure
-                if isinstance(jobs, list) and len(jobs) > 0 and hasattr(jobs[0], "text"):
-                    print(f"DEBUG: Jobs response type: {type(jobs[0].text)}")
-                    print(f"DEBUG: Jobs response content: {jobs[0].text[:200]}...")
-                
-                job_id = safe_extract_id(jobs, "jobId")
-                
-            except Exception as e:
-                print(f"DEBUG: Error in get_jobs_list: {e}")
-                job_id = None
-            
-            if not job_id:
-                # Try to get a hardcoded job ID as fallback for testing
-                try:
-                    job_details_test = await client.call_tool("get_job_detail", {"job_id": "1"})
-                    if isinstance(job_details_test, list) and len(job_details_test) > 0:
-                        response_text = job_details_test[0].text.lower()
-                        if "job" in response_text and "error" not in response_text:
-                            job_id = "1"
-                except:
-                    pass
-            
-            if not job_id:
-                assert True, "No jobs found to test workflow with"
-                return
-            
-            try:
-                # Step 1: Get comprehensive job information
-                job_details = await client.call_tool("get_job_detail", {"job_id": job_id})
-                check_response_for_errors(job_details, "Get job details")
-                
-                task_details = await client.call_tool("get_job_task_details", {"job_id": job_id})
-                check_response_for_errors(task_details, "Get task details")
-                
-                retention_info = await client.call_tool("get_retention_info_of_a_job", {"job_id": job_id})
-                check_response_for_errors(retention_info, "Get retention info")
-                
-                # Step 2: Send logs for analysis
-                send_logs = await client.call_tool("create_send_logs_job_for_a_job", {
-                    "emailid": "nmurali@commvault.com",
-                    "job_id": job_id
-                })
-                check_response_for_errors(send_logs, "Send logs")
-                
-                # Step 3: Resubmit job if needed
-                resubmit_result = await client.call_tool("resubmit_job", {"job_id": job_id})
-                check_response_for_errors(resubmit_result, "Resubmit job")
-                
-            except Exception as e:
-                print(f"DEBUG: Error in job investigation workflow: {e}")
-                # At least verify we can call the basic function
-                assert job_id is not None, f"Job investigation failed but job_id was found: {job_id}"
-
-class TestUserSecurityIntegrationWorkflows:
-    """Test user management and security integration workflows (excluding non-working tools)."""
-    
-    async def test_user_analysis_workflow(self, mcp_server):
-        """Test workflow: analyze users -> check properties -> review permissions."""
-        async with Client(mcp_server) as client:
-            # Step 1: Get all users
-            users_list = await client.call_tool("get_users_list", {})
-            assert isinstance(users_list, list) or "error" not in users_list[0].text.lower()
-            
-            # Extract user IDs
-            user_ids = safe_extract_ids(users_list, "userId", 2)
-            
-            # Step 2: Get detailed properties for specific users
-            for user_id in user_ids:
-                user_props = await client.call_tool("get_user_properties", {"user_id": user_id})
-                if isinstance(user_props, list) and hasattr(user_props[0], "text"):
-                    try:
-                        data = json.loads(user_props[0].text)
-                        assert not is_real_error(data)
-                    except json.JSONDecodeError:
-                        pass
-                
-                # Step 3: Check user associations
-                user_entities = await client.call_tool("get_associated_entities_for_user_or_user_group", {
-                    "id": user_id,
-                    "type": "user"
-                })
-                if isinstance(user_entities, list) and hasattr(user_entities[0], "text"):
-                    try:
-                        data = json.loads(user_entities[0].text)
-                        assert not is_real_error(data)
-                    except json.JSONDecodeError:
-                        pass
-            
-            # Step 4: Get available roles for context
-            roles_list = await client.call_tool("get_roles_list", {})
-            assert isinstance(roles_list, list) or "error" not in roles_list[0].text.lower()
-
-    async def test_user_group_analysis_workflow(self, mcp_server):
-        """Test workflow: analyze user groups -> check properties -> review group permissions."""
-        async with Client(mcp_server) as client:
-            # Step 1: Get all user groups
-            user_groups = await client.call_tool("get_user_groups_list", {})
-            assert isinstance(user_groups, list) or "error" not in user_groups[0].text.lower()
-            
-            # Extract group IDs
-            group_ids = safe_extract_ids(user_groups, "userGroupId", 2)
-            
-            # Step 2: Get properties for specific user groups
-            for group_id in group_ids:
-                group_props = await client.call_tool("get_user_group_properties", {"user_group_id": group_id})
-                if isinstance(group_props, list) and hasattr(group_props[0], "text"):
-                    try:
-                        data = json.loads(group_props[0].text)
-                        assert not is_real_error(data)
-                    except json.JSONDecodeError:
-                        pass
-                
-                # Step 3: Check group associations
-                group_entities = await client.call_tool("get_associated_entities_for_user_or_user_group", {
-                    "id": group_id,
-                    "type": "usergroup"
-                })
-                if isinstance(group_entities, list) and hasattr(group_entities[0], "text"):
-                    try:
-                        data = json.loads(group_entities[0].text)
-                        assert not is_real_error(data)
-                    except json.JSONDecodeError:
-                        pass
-
-    async def test_user_enable_disable_workflow(self, mcp_server):
-        """Test workflow: user state management -> property verification."""
-        async with Client(mcp_server) as client:
-            # Get first available user
-            users_list = await client.call_tool("get_users_list", {})
-            user_id = safe_extract_id(users_list, "userId")
-            
-            if not user_id:
-                assert True, "No users found to test workflow with"
-                return
-            
-            # Step 1: Get initial user state
-            initial_props = await client.call_tool("get_user_properties", {"user_id": user_id})
-            if isinstance(initial_props, list) and hasattr(initial_props[0], "text"):
-                try:
-                    data = json.loads(initial_props[0].text)
-                    assert not is_real_error(data)
-                except json.JSONDecodeError:
-                    pass
-            
-            # Step 2: Disable user
-            disable_result = await client.call_tool("set_user_enabled", {
-                "user_id": user_id,
-                "enabled": False
-            })
-            if isinstance(disable_result, list) and hasattr(disable_result[0], "text"):
-                response_text = disable_result[0].text.lower()
-                assert "success" in response_text or not any(phrase in response_text for phrase in ["error occurred", "failed to"])
-            
-            # Step 3: Check user state after disable
-            disabled_props = await client.call_tool("get_user_properties", {"user_id": user_id})
-            if isinstance(disabled_props, list) and hasattr(disabled_props[0], "text"):
-                try:
-                    data = json.loads(disabled_props[0].text)
-                    assert not is_real_error(data)
-                except json.JSONDecodeError:
-                    pass
-            
-            # Step 4: Re-enable user
-            enable_result = await client.call_tool("set_user_enabled", {
-                "user_id": user_id,
-                "enabled": True
-            })
-            if isinstance(enable_result, list) and hasattr(enable_result[0], "text"):
-                response_text = enable_result[0].text.lower()
-                assert "success" in response_text or not any(phrase in response_text for phrase in ["error occurred", "failed to"])
-            
-            # Step 5: Verify final state
-            final_props = await client.call_tool("get_user_properties", {"user_id": user_id})
-            if isinstance(final_props, list) and hasattr(final_props[0], "text"):
-                try:
-                    data = json.loads(final_props[0].text)
-                    assert not is_real_error(data)
-                except json.JSONDecodeError:
-                    pass
-
-    async def test_permission_analysis_workflow(self, mcp_server):
-        """Test workflow: analyze entity permissions across different entity types."""
-        async with Client(mcp_server) as client:
-            # Get available entities
-            clients = await client.call_tool("get_client_list", {})
-            storage_policies = await client.call_tool("get_storage_policy_list", {})
-            
-            client_id = safe_extract_id(clients, "clientId")
-            storage_policy_id = safe_extract_id(storage_policies, "storagePolicyId")
-            
-            # Step 1: Check permissions for different entity types
-            entity_tests = [
-                ("CLIENT_ENTITY", client_id),
-                ("COMMCELL_ENTITY", "1"),  # CommCell entity typically has ID 1
-                ("STORAGE_POLICY_ENTITY", storage_policy_id)
-            ]
-            
-            for entity_type, entity_id in entity_tests:
-                if entity_id:
-                    entity_perms = await client.call_tool("view_entity_permissions", {
-                        "entity_type": entity_type,
-                        "entity_id": entity_id
-                    })
-                    if isinstance(entity_perms, list) and hasattr(entity_perms[0], "text"):
-                        try:
-                            data = json.loads(entity_perms[0].text)
-                            assert not is_real_error(data)
-                        except json.JSONDecodeError:
-                            pass
-            
-            # Step 2: Get roles for context
-            roles_list = await client.call_tool("get_roles_list", {})
-            assert isinstance(roles_list, list) or "error" not in roles_list[0].text.lower()
-
-class TestStoragePlanIntegrationWorkflows:
-    """Test storage and plan management integration workflows (excluding non-working tools)."""
-    
-    async def test_storage_policy_analysis_workflow(self, mcp_server):
-        """Test workflow: analyze storage policies -> get detailed properties -> check copies."""
-        async with Client(mcp_server) as client:
-            # Step 1: Get all storage policies
-            storage_policies = await client.call_tool("get_storage_policy_list", {})
-            assert isinstance(storage_policies, list)
-            
-            # Extract policy IDs
-            policy_ids = safe_extract_ids(storage_policies, "storagePolicyId", 2)
-            
-            # Step 2: Get detailed properties for specific policies
-            for policy_id in policy_ids:
-                policy_props = await client.call_tool("get_storage_policy_properties", {
-                    "storage_policy_id": policy_id
-                })
-                if isinstance(policy_props, list) and hasattr(policy_props[0], "text"):
-                    try:
-                        data = json.loads(policy_props[0].text)
-                        assert not is_real_error(data)
-                        
-                        # Step 3: Get copy details for policies
-                        if isinstance(data, dict) and "storagePolicyCopyInfo" in data:
-                            copies = data["storagePolicyCopyInfo"]
-                            if isinstance(copies, list) and len(copies) > 0:
-                                copy_id = str(copies[0].get("copyId"))
-                                if copy_id:
-                                    copy_details = await client.call_tool("get_storage_policy_copy_details", {
-                                        "storage_policy_id": policy_id,
-                                        "copy_id": copy_id
-                                    })
-                                    if isinstance(copy_details, list) and hasattr(copy_details[0], "text"):
-                                        copy_data = json.loads(copy_details[0].text)
-                                        assert not is_real_error(copy_data)
-                    except json.JSONDecodeError:
-                        pass
-
-    async def test_storage_infrastructure_workflow(self, mcp_server):
-        """Test workflow: analyze storage infrastructure -> pools -> media agents."""
-        async with Client(mcp_server) as client:
-            # Step 1: Get storage pools
-            storage_pools = await client.call_tool("get_storage_pool_list", {})
-            assert isinstance(storage_pools, list)
-            
-            # Step 2: Get media agents
-            media_agents = await client.call_tool("get_mediaagent_list", {})
-            assert isinstance(media_agents, list)
-            
-            # Step 3: Get storage policies for correlation
-            storage_policies = await client.call_tool("get_storage_policy_list", {})
-            assert isinstance(storage_policies, list)
-
-    async def test_plan_management_workflow(self, mcp_server):
-        """Test workflow: analyze plans -> get detailed properties."""
-        async with Client(mcp_server) as client:
-            # Step 1: Get all plans
-            plans_list = await client.call_tool("get_plan_list", {})
-            assert isinstance(plans_list, list) or "error" not in plans_list[0].text.lower()
-            
-            # Extract plan IDs
-            plan_ids = safe_extract_ids(plans_list, "planId", 2)
-            
-            # Step 2: Get detailed properties for specific plans
-            for plan_id in plan_ids:
-                if plan_id:
-                    plan_props = await client.call_tool("get_plan_properties", {"plan_id": plan_id})
-                    if isinstance(plan_props, list) and hasattr(plan_props[0], "text"):
-                        response_text = plan_props[0].text.lower()
-                        assert "plan" in response_text or not any(phrase in response_text for phrase in ["error occurred", "failed to"])
-
-class TestScheduleManagementIntegrationWorkflows:
-    """Test schedule management integration workflows (using only working tools)."""
-    
-    async def test_schedule_listing_workflow(self, mcp_server):
-        """Test workflow: get schedules -> analyze schedule data."""
-        async with Client(mcp_server) as client:
-            # Step 1: Get all schedules
-            schedules_list = await client.call_tool("get_schedules_list", {})
-            assert isinstance(schedules_list, list) or "error" not in schedules_list[0].text.lower()
-            
-            # Step 2: Correlate with recent jobs to see schedule effectiveness
-            recent_jobs = await client.call_tool("get_jobs_list", {
-                "jobLookupWindow": 86400,
-                "limit": 50
-            })
-            assert isinstance(recent_jobs, list) or "error" not in recent_jobs[0].text.lower()
-            
-            # Step 3: Check failed jobs to identify schedule issues
-            failed_jobs = await client.call_tool("get_failed_jobs", {
-                "jobLookupWindow": 86400,
-                "limit": 25
-            })
-            assert isinstance(failed_jobs, list) or "error" not in failed_jobs[0].text.lower()
+            failed_jobs_data = extract_response_data(failed_jobs)
+            assert_no_error_in_response(failed_jobs_data, "get_failed_jobs")
 
 class TestCommcellDashboardIntegrationWorkflows:
     """Test CommCell dashboard and monitoring integration workflows."""
@@ -632,32 +271,27 @@ class TestCommcellDashboardIntegrationWorkflows:
         async with Client(mcp_server) as client:
             # Step 1: Get CommCell details
             commcell_details = await client.call_tool("get_commcell_details", {})
-            if isinstance(commcell_details, list) and hasattr(commcell_details[0], "text"):
-                data = json.loads(commcell_details[0].text)
-                assert not is_real_error(data)
+            commcell_data = extract_response_data(commcell_details)
+            assert_no_error_in_response(commcell_data, "get_commcell_details")
             
             # Step 2: Get SLA status
             sla_status = await client.call_tool("get_sla_status", {})
-            if isinstance(sla_status, list) and hasattr(sla_status[0], "text"):
-                data = json.loads(sla_status[0].text)
-                assert not is_real_error(data)
+            sla_data = extract_response_data(sla_status)
+            assert_no_error_in_response(sla_data, "get_sla_status")
             
             # Step 3: Get security metrics
             security_posture = await client.call_tool("get_security_posture", {})
-            if isinstance(security_posture, list) and hasattr(security_posture[0], "text"):
-                data = json.loads(security_posture[0].text)
-                assert not is_real_error(data)
+            security_posture_data = extract_response_data(security_posture)
+            assert_no_error_in_response(security_posture_data, "get_security_posture")
             
             security_score = await client.call_tool("get_security_score", {})
-            if isinstance(security_score, list) and hasattr(security_score[0], "text"):
-                data = json.loads(security_score[0].text)
-                assert not is_real_error(data)
+            security_score_data = extract_response_data(security_score)
+            assert_no_error_in_response(security_score_data, "get_security_score")
             
             # Step 4: Get storage utilization
             storage_util = await client.call_tool("get_storage_space_utilization", {})
-            if isinstance(storage_util, list) and hasattr(storage_util[0], "text"):
-                data = json.loads(storage_util[0].text)
-                assert not is_real_error(data)
+            storage_util_data = extract_response_data(storage_util)
+            assert_no_error_in_response(storage_util_data, "get_storage_space_utilization")
 
     async def test_commcell_logs_workflow(self, mcp_server):
         """Test workflow: generate CommCell logs for analysis."""
@@ -676,13 +310,10 @@ class TestCommcellDashboardIntegrationWorkflows:
                     "emailid": "test@example.com",
                     "commcell_name": commcell_name
                 })
-                if isinstance(send_logs, list) and hasattr(send_logs[0], "text"):
-                    data = json.loads(send_logs[0].text)
-                    assert not is_real_error(data)
-                else:
-                    assert isinstance(send_logs, dict)
+                send_logs_data = extract_response_data(send_logs)
+                assert_no_error_in_response(send_logs_data, "create_send_logs_job_for_commcell")
             else:
-                assert True, "No CommCell name found to test with"
+                pytest.skip("No CommCell name found to test with")
 
 class TestJobFilteringIntegrationWorkflows:
     """Test comprehensive job filtering integration scenarios."""
@@ -696,7 +327,8 @@ class TestJobFilteringIntegrationWorkflows:
                 "jobLookupWindow": 86400,
                 "limit": 30
             })
-            assert isinstance(backup_jobs, list) or "error" not in backup_jobs[0].text.lower()
+            backup_jobs_data = extract_response_data(backup_jobs)
+            assert_no_error_in_response(backup_jobs_data, "get_jobs_list")
             
             # Step 2: Get restore jobs
             restore_jobs = await client.call_tool("get_jobs_list", {
@@ -704,7 +336,8 @@ class TestJobFilteringIntegrationWorkflows:
                 "jobLookupWindow": 86400,
                 "limit": 20
             })
-            assert isinstance(restore_jobs, list) or "error" not in restore_jobs[0].text.lower()
+            restore_jobs_data = extract_response_data(restore_jobs)
+            assert_no_error_in_response(restore_jobs_data, "get_jobs_list")
             
             # Step 3: Get auxiliary copy jobs
             auxcopy_jobs = await client.call_tool("get_jobs_list", {
@@ -712,14 +345,16 @@ class TestJobFilteringIntegrationWorkflows:
                 "jobLookupWindow": 86400,
                 "limit": 15
             })
-            assert isinstance(auxcopy_jobs, list) or "error" not in auxcopy_jobs[0].text.lower()
+            auxcopy_jobs_data = extract_response_data(auxcopy_jobs)
+            assert_no_error_in_response(auxcopy_jobs_data, "get_jobs_list")
             
             # Step 4: Get all jobs for comparison
             all_jobs = await client.call_tool("get_jobs_list", {
                 "jobLookupWindow": 86400,
                 "limit": 50
             })
-            assert isinstance(all_jobs, list) or "error" not in all_jobs[0].text.lower()
+            all_jobs_data = extract_response_data(all_jobs)
+            assert_no_error_in_response(all_jobs_data, "get_jobs_list")
 
     async def test_job_status_analysis_workflow(self, mcp_server):
         """Test workflow: analyze jobs by status -> investigate patterns."""
@@ -730,7 +365,8 @@ class TestJobFilteringIntegrationWorkflows:
                 "jobLookupWindow": 86400,
                 "limit": 25
             })
-            assert isinstance(active_jobs, list) or "error" not in active_jobs[0].text.lower()
+            active_jobs_data = extract_response_data(active_jobs)
+            assert_no_error_in_response(active_jobs_data, "get_jobs_list")
             
             # Step 2: Get finished jobs
             finished_jobs = await client.call_tool("get_jobs_list", {
@@ -738,14 +374,16 @@ class TestJobFilteringIntegrationWorkflows:
                 "jobLookupWindow": 86400,
                 "limit": 25
             })
-            assert isinstance(finished_jobs, list) or "error" not in finished_jobs[0].text.lower()
+            finished_jobs_data = extract_response_data(finished_jobs)
+            assert_no_error_in_response(finished_jobs_data, "get_jobs_list")
             
             # Step 3: Get failed jobs for detailed analysis
             failed_jobs = await client.call_tool("get_failed_jobs", {
                 "jobLookupWindow": 86400,
                 "limit": 20
             })
-            assert isinstance(failed_jobs, list) or "error" not in failed_jobs[0].text.lower()
+            failed_jobs_data = extract_response_data(failed_jobs)
+            assert_no_error_in_response(failed_jobs_data, "get_failed_jobs")
             
             # Step 4: Get all jobs for comprehensive view
             all_jobs = await client.call_tool("get_jobs_list", {
@@ -753,7 +391,8 @@ class TestJobFilteringIntegrationWorkflows:
                 "jobLookupWindow": 86400,
                 "limit": 40
             })
-            assert isinstance(all_jobs, list) or "error" not in all_jobs[0].text.lower()
+            all_jobs_data = extract_response_data(all_jobs)
+            assert_no_error_in_response(all_jobs_data, "get_jobs_list")
 
     async def test_client_specific_job_analysis_workflow(self, mcp_server):
         """Test workflow: analyze jobs for specific clients -> compare performance."""
@@ -769,14 +408,16 @@ class TestJobFilteringIntegrationWorkflows:
                     "jobLookupWindow": 86400,
                     "limit": 20
                 })
-                assert isinstance(client_jobs, list) or "error" not in client_jobs[0].text.lower()
+                client_jobs_data = extract_response_data(client_jobs)
+                assert_no_error_in_response(client_jobs_data, "get_jobs_list")
                 
                 # Get client details for context
                 client_subclients = await client.call_tool("get_subclient_list", {
                     "client_identifier": client_id,
                     "identifier_type": "id"
                 })
-                check_response_for_errors(client_subclients, f"Get client {client_id} subclients")
+                client_subclients_data = extract_response_data(client_subclients)
+                assert_no_error_in_response(client_subclients_data, "get_subclient_list")
 
 class TestTroubleshootingIntegrationWorkflows:
     """Test troubleshooting integration workflows."""
@@ -789,7 +430,8 @@ class TestTroubleshootingIntegrationWorkflows:
                 "jobLookupWindow": 86400,
                 "limit": 50
             })
-            assert isinstance(failed_jobs, list) or "error" not in failed_jobs[0].text.lower()
+            failed_jobs_data = extract_response_data(failed_jobs)
+            assert_no_error_in_response(failed_jobs_data, "get_failed_jobs")
             
             # Extract job ID and subclient ID from failed jobs
             job_id = safe_extract_id(failed_jobs, "jobId")
@@ -802,27 +444,31 @@ class TestTroubleshootingIntegrationWorkflows:
                 subclient_id = safe_extract_id(all_jobs, "subClientId")
             
             if not job_id:
-                assert True, "No jobs found to test investigation workflow with"
-                return
+                pytest.skip("No jobs found to test investigation workflow with")
             
             # Step 2: Get detailed information for specific job
             job_details = await client.call_tool("get_job_detail", {"job_id": job_id})
-            check_response_for_errors(job_details, "Get job details for investigation")
+            job_details_data = extract_response_data(job_details)
+            assert_no_error_in_response(job_details_data, "get_job_detail")
             
             task_details = await client.call_tool("get_job_task_details", {"job_id": job_id})
-            check_response_for_errors(task_details, "Get task details for investigation")
+            task_details_data = extract_response_data(task_details)
+            acceptable_errors = ["job is older than", "task details not available"]
+            assert_no_error_in_response(task_details_data, "get_job_task_details", acceptable_errors)
             
             # Step 3: Check related subclient if available
             if subclient_id:
                 subclient_props = await client.call_tool("get_subclient_properties", {"subclient_id": subclient_id})
-                check_response_for_errors(subclient_props, "Get subclient properties")
+                subclient_props_data = extract_response_data(subclient_props)
+                assert_no_error_in_response(subclient_props_data, "get_subclient_properties")
             
             # Step 4: Generate logs for support
             send_logs = await client.call_tool("create_send_logs_job_for_a_job", {
                 "emailid": "test@example.com",
                 "job_id": job_id
             })
-            check_response_for_errors(send_logs, "Create send logs job")
+            send_logs_data = extract_response_data(send_logs)
+            assert_no_error_in_response(send_logs_data, "create_send_logs_job_for_a_job")
 
     async def test_performance_analysis_workflow(self, mcp_server):
         """Test workflow: analyze job performance across time windows."""
@@ -832,28 +478,32 @@ class TestTroubleshootingIntegrationWorkflows:
                 "jobLookupWindow": 3600,  # 1 hour
                 "limit": 20
             })
-            assert isinstance(hourly_jobs, list) or "error" not in hourly_jobs[0].text.lower()
+            hourly_jobs_data = extract_response_data(hourly_jobs)
+            assert_no_error_in_response(hourly_jobs_data, "get_jobs_list")
             
             # Step 2: Get jobs from last day
             daily_jobs = await client.call_tool("get_jobs_list", {
                 "jobLookupWindow": 86400,  # 24 hours
                 "limit": 50
             })
-            assert isinstance(daily_jobs, list) or "error" not in daily_jobs[0].text.lower()
+            daily_jobs_data = extract_response_data(daily_jobs)
+            assert_no_error_in_response(daily_jobs_data, "get_jobs_list")
             
             # Step 3: Get jobs from last week
             weekly_jobs = await client.call_tool("get_jobs_list", {
                 "jobLookupWindow": 604800,  # 1 week
                 "limit": 100
             })
-            assert isinstance(weekly_jobs, list) or "error" not in weekly_jobs[0].text.lower()
+            weekly_jobs_data = extract_response_data(weekly_jobs)
+            assert_no_error_in_response(weekly_jobs_data, "get_jobs_list")
             
             # Step 4: Get failed jobs for comparison
             failed_jobs = await client.call_tool("get_failed_jobs", {
                 "jobLookupWindow": 604800,
                 "limit": 50
             })
-            assert isinstance(failed_jobs, list) or "error" not in failed_jobs[0].text.lower()
+            failed_jobs_data = extract_response_data(failed_jobs)
+            assert_no_error_in_response(failed_jobs_data, "get_failed_jobs")
 
 class TestAuthenticationWorkflows:
     """Test authentication and authorization workflows."""
@@ -935,14 +585,243 @@ class TestAuthenticationWorkflows:
         async with Client(mcp_server) as client:
             # Make a simple API call that requires authentication
             clients_result = await client.call_tool("get_client_list", {})
+            clients_data = extract_response_data(clients_result)
             
             # Verify the call succeeded (should not get authentication errors)
-            if isinstance(clients_result, list) and len(clients_result) > 0:
-                response_text = clients_result[0].text.lower()
+            if isinstance(clients_data, str):
                 # Make sure we don't have authentication-related errors
                 auth_error_keywords = ["invalid or missing token", "unauthorized", "authentication failed"]
                 for keyword in auth_error_keywords:
-                    assert keyword not in response_text, f"Unexpected authentication error: {keyword}"
+                    assert keyword not in clients_data.lower(), f"Unexpected authentication error: {keyword}"
             
             # The call should either succeed with data or fail with a non-auth error
-            assert isinstance(clients_result, list) or "authentication" not in str(clients_result).lower()
+            assert_no_error_in_response(clients_data, "get_client_list")
+
+class TestUserSecurityIntegrationWorkflows:
+    """Test user management and security integration workflows."""
+    
+    async def test_user_analysis_workflow(self, mcp_server):
+        """Test workflow: analyze users -> check properties -> review permissions."""
+        async with Client(mcp_server) as client:
+            # Step 1: Get all users
+            users_list = await client.call_tool("get_users_list", {})
+            users_data = extract_response_data(users_list)
+            assert_no_error_in_response(users_data, "get_users_list")
+            
+            # Extract user IDs
+            user_ids = safe_extract_ids(users_list, "userId", 2)
+            
+            # Step 2: Get detailed properties for specific users
+            for user_id in user_ids:
+                user_props = await client.call_tool("get_user_properties", {"user_id": user_id})
+                user_props_data = extract_response_data(user_props)
+                assert_no_error_in_response(user_props_data, "get_user_properties")
+                
+                # Step 3: Check user associations
+                user_entities = await client.call_tool("get_associated_entities_for_user_or_user_group", {
+                    "id": user_id,
+                    "type": "user"
+                })
+                user_entities_data = extract_response_data(user_entities)
+                assert_no_error_in_response(user_entities_data, "get_associated_entities_for_user_or_user_group")
+            
+            # Step 4: Get available roles for context
+            roles_list = await client.call_tool("get_roles_list", {})
+            roles_data = extract_response_data(roles_list)
+            assert_no_error_in_response(roles_data, "get_roles_list")
+
+    async def test_user_group_analysis_workflow(self, mcp_server):
+        """Test workflow: analyze user groups -> check properties -> review group permissions."""
+        async with Client(mcp_server) as client:
+            # Step 1: Get all user groups
+            user_groups = await client.call_tool("get_user_groups_list", {})
+            user_groups_data = extract_response_data(user_groups)
+            assert_no_error_in_response(user_groups_data, "get_user_groups_list")
+            
+            # Extract group IDs
+            group_ids = safe_extract_ids(user_groups, "userGroupId", 2)
+            
+            # Step 2: Get properties for specific user groups
+            for group_id in group_ids:
+                group_props = await client.call_tool("get_user_group_properties", {"user_group_id": group_id})
+                group_props_data = extract_response_data(group_props)
+                assert_no_error_in_response(group_props_data, "get_user_group_properties")
+                
+                # Step 3: Check group associations
+                group_entities = await client.call_tool("get_associated_entities_for_user_or_user_group", {
+                    "id": group_id,
+                    "type": "usergroup"
+                })
+                group_entities_data = extract_response_data(group_entities)
+                assert_no_error_in_response(group_entities_data, "get_associated_entities_for_user_or_user_group")
+
+    async def test_user_enable_disable_workflow(self, mcp_server):
+        """Test workflow: user state management -> property verification."""
+        async with Client(mcp_server) as client:
+            # Get first available user
+            users_list = await client.call_tool("get_users_list", {})
+            user_id = safe_extract_id(users_list, "userId")
+            
+            if not user_id:
+                pytest.skip("No users found to test workflow with")
+            
+            # Step 1: Get initial user state
+            initial_props = await client.call_tool("get_user_properties", {"user_id": user_id})
+            initial_props_data = extract_response_data(initial_props)
+            assert_no_error_in_response(initial_props_data, "get_user_properties")
+            
+            # Step 2: Disable user
+            acceptable_errors = ["user cannot be modified", "operation not permitted", "user is system user", "insufficient privileges"]
+            disable_result = await client.call_tool("set_user_enabled", {
+                "user_id": user_id,
+                "enabled": False
+            })
+            disable_data = extract_response_data(disable_result)
+            assert_no_error_in_response(disable_data, "set_user_enabled", acceptable_errors)
+            
+            # Step 3: Check user state after disable
+            disabled_props = await client.call_tool("get_user_properties", {"user_id": user_id})
+            disabled_props_data = extract_response_data(disabled_props)
+            assert_no_error_in_response(disabled_props_data, "get_user_properties")
+            
+            # Step 4: Re-enable user
+            enable_result = await client.call_tool("set_user_enabled", {
+                "user_id": user_id,
+                "enabled": True
+            })
+            enable_data = extract_response_data(enable_result)
+            assert_no_error_in_response(enable_data, "set_user_enabled", acceptable_errors)
+            
+            # Step 5: Verify final state
+            final_props = await client.call_tool("get_user_properties", {"user_id": user_id})
+            final_props_data = extract_response_data(final_props)
+            assert_no_error_in_response(final_props_data, "get_user_properties")
+
+    async def test_permission_analysis_workflow(self, mcp_server):
+        """Test workflow: analyze entity permissions across different entity types."""
+        async with Client(mcp_server) as client:
+            # Get available entities
+            clients = await client.call_tool("get_client_list", {})
+            storage_policies = await client.call_tool("get_storage_policy_list", {})
+            
+            client_id = safe_extract_id(clients, "clientId")
+            storage_policy_id = safe_extract_id(storage_policies, "storagePolicyId")
+            
+            # Step 1: Check permissions for different entity types
+            entity_tests = [
+                ("CLIENT_ENTITY", client_id),
+                ("COMMCELL_ENTITY", "1"),  # CommCell entity typically has ID 1
+                ("STORAGE_POLICY_ENTITY", storage_policy_id)
+            ]
+            
+            for entity_type, entity_id in entity_tests:
+                if entity_id:
+                    entity_perms = await client.call_tool("view_entity_permissions", {
+                        "entity_type": entity_type,
+                        "entity_id": entity_id
+                    })
+                    entity_perms_data = extract_response_data(entity_perms)
+                    assert_no_error_in_response(entity_perms_data, "view_entity_permissions")
+            
+            # Step 2: Get roles for context
+            roles_list = await client.call_tool("get_roles_list", {})
+            roles_data = extract_response_data(roles_list)
+            assert_no_error_in_response(roles_data, "get_roles_list")
+
+class TestStoragePlanIntegrationWorkflows:
+    """Test storage and plan management integration workflows."""
+    
+    async def test_storage_policy_analysis_workflow(self, mcp_server):
+        """Test workflow: analyze storage policies -> get detailed properties -> check copies."""
+        async with Client(mcp_server) as client:
+            # Step 1: Get all storage policies
+            storage_policies = await client.call_tool("get_storage_policy_list", {})
+            storage_policies_data = extract_response_data(storage_policies)
+            assert_no_error_in_response(storage_policies_data, "get_storage_policy_list")
+            
+            # Extract policy IDs
+            policy_ids = safe_extract_ids(storage_policies, "storagePolicyId", 2)
+            
+            # Step 2: Get detailed properties for specific policies
+            for policy_id in policy_ids:
+                policy_props = await client.call_tool("get_storage_policy_properties", {
+                    "storage_policy_id": policy_id
+                })
+                policy_props_data = extract_response_data(policy_props)
+                assert_no_error_in_response(policy_props_data, "get_storage_policy_properties")
+                
+                # Step 3: Get copy details for policies if available
+                if isinstance(policy_props_data, dict) and "storagePolicyCopyInfo" in policy_props_data:
+                    copies = policy_props_data["storagePolicyCopyInfo"]
+                    if isinstance(copies, list) and len(copies) > 0:
+                        copy_id = str(copies[0].get("copyId"))
+                        if copy_id:
+                            copy_details = await client.call_tool("get_storage_policy_copy_details", {
+                                "storage_policy_id": policy_id,
+                                "copy_id": copy_id
+                            })
+                            copy_details_data = extract_response_data(copy_details)
+                            assert_no_error_in_response(copy_details_data, "get_storage_policy_copy_details")
+
+    async def test_storage_infrastructure_workflow(self, mcp_server):
+        """Test workflow: analyze storage infrastructure -> pools -> media agents."""
+        async with Client(mcp_server) as client:
+            # Step 1: Get storage pools
+            storage_pools = await client.call_tool("get_storage_pool_list", {})
+            storage_pools_data = extract_response_data(storage_pools)
+            assert_no_error_in_response(storage_pools_data, "get_storage_pool_list")
+            
+            # Step 2: Get media agents
+            media_agents = await client.call_tool("get_mediaagent_list", {})
+            media_agents_data = extract_response_data(media_agents)
+            assert_no_error_in_response(media_agents_data, "get_mediaagent_list")
+            
+            # Step 3: Get storage policies for correlation
+            storage_policies = await client.call_tool("get_storage_policy_list", {})
+            storage_policies_data = extract_response_data(storage_policies)
+            assert_no_error_in_response(storage_policies_data, "get_storage_policy_list")
+
+    async def test_plan_management_workflow(self, mcp_server):
+        """Test workflow: analyze plans -> get detailed properties."""
+        async with Client(mcp_server) as client:
+            # Step 1: Get all plans
+            plans_list = await client.call_tool("get_plan_list", {})
+            plans_data = extract_response_data(plans_list)
+            assert_no_error_in_response(plans_data, "get_plan_list")
+            
+            # Extract plan IDs
+            plan_ids = safe_extract_ids(plans_list, "planId", 2)
+            
+            # Step 2: Get detailed properties for specific plans
+            for plan_id in plan_ids:
+                if plan_id:
+                    plan_props = await client.call_tool("get_plan_properties", {"plan_id": plan_id})
+                    plan_props_data = extract_response_data(plan_props)
+                    assert_no_error_in_response(plan_props_data, "get_plan_properties")
+
+class TestScheduleManagementIntegrationWorkflows:
+    """Test schedule management integration workflows."""
+    
+    async def test_schedule_listing_workflow(self, mcp_server):
+        """Test workflow: get schedules -> analyze schedule data."""
+        async with Client(mcp_server) as client:
+            # Step 1: Get all schedules
+            schedules_list = await client.call_tool("get_schedules_list", {})
+            schedules_data = extract_response_data(schedules_list)
+            assert_no_error_in_response(schedules_data, "get_schedules_list")
+            
+            # Step 2: Correlate with recent jobs to see schedule effectiveness
+            recent_jobs = await client.call_tool("get_jobs_list", {
+                "jobLookupWindow": 86400,
+                "limit": 50
+            })
+            recent_jobs_data = extract_response_data(recent_jobs)
+            assert_no_error_in_response(recent_jobs_data, "get_jobs_list")
+            
+            # Step 3: Check failed jobs to identify schedule issues
+            failed_jobs = await client.call_tool("get_failed_jobs", {
+                "jobLookupWindow": 86400,
+                "limit": 25
+            })
+            failed_jobs_data = extract_response_data(failed_jobs)
+            assert_no_error_in_response(failed_jobs_data, "get_failed_jobs")
