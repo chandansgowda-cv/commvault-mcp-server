@@ -93,14 +93,17 @@ async def test_get_storage_policy_properties(mcp_server):
                         storage_policy_id = str(storage_policy["storagePolicyId"])
     
     # Test getting storage policy properties for existing policy
-    async with Client(mcp_server) as client:
-        result = await client.call_tool("get_storage_policy_properties", {"storage_policy_id": storage_policy_id})
-        data = extract_response_data(result)
-        assert_no_error_in_response(data, "get_storage_policy_properties")
+    if storage_policy_id is not None:
+        async with Client(mcp_server) as client:
+            result = await client.call_tool("get_storage_policy_properties", {"storage_policy_id": storage_policy_id})
+            data = extract_response_data(result)
+            assert_no_error_in_response(data, "get_storage_policy_properties")
         
-        # Verify it returns policy data
-        if isinstance(data, dict):
-            assert len(data) > 0, "Storage policy properties response should not be empty"
+            # Verify it returns policy data
+            if isinstance(data, dict):
+                assert len(data) > 0, "Storage policy properties response should not be empty"
+    else:
+        pytest.skip("No storage policies found to test with")
 
 async def test_get_storage_policy_copy_details(mcp_server):
     storage_policy_id = None
