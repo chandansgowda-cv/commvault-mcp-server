@@ -107,7 +107,8 @@ async def test_get_plan_properties(mcp_server):
         assert_no_error_in_response(data, "get_plan_properties")
         
         # Verify response has content
-        if isinstance(data, dict):
-            assert len(data) > 0, "Plan properties response should not be empty"
-        elif isinstance(data, str):
+            if isinstance(data, dict):
+                assert len(data) > 0, "Plan properties response should not be empty"
+            elif isinstance(data, str):
+                assert len(data) > 0, "Plan properties response should not be empty"
             assert len(data) > 0, "Plan properties response should not be empty"
