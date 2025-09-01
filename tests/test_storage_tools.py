@@ -144,10 +144,13 @@ async def test_get_storage_policy_copy_details(mcp_server):
                                     copy_id = str(storage_policy_copy["copyId"])
     
     # Test getting copy details for existing copy
-    async with Client(mcp_server) as client:
-        result = await client.call_tool("get_storage_policy_copy_details", {"storage_policy_id": storage_policy_id, "copy_id": copy_id})
-        data = extract_response_data(result)
-        assert_no_error_in_response(data, "get_storage_policy_copy_details")
+    if storage_policy_id is not None and copy_id is not None:
+        async with Client(mcp_server) as client:
+            result = await client.call_tool("get_storage_policy_copy_details", {"storage_policy_id": storage_policy_id, "copy_id": copy_id})
+            data = extract_response_data(result)
+            assert_no_error_in_response(data, "get_storage_policy_copy_details")
+    else:
+        pytest.skip("No storage policy or copy found to test with")
 
 # async def test_get_storage_policy_copy_size(mcp_server):
 #     async with Client(mcp_server) as client:
