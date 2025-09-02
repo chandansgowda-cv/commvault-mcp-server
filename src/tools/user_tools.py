@@ -109,7 +109,7 @@ def set_user_group_assignment(
         logger.error(f"Error assigning user {user_id} to user group {user_group_id}: {e}")
         return ToolError({"error": str(e)})
     
-def get_associated_entities_for_user_or_user_group(id: Annotated[str, Field(description="The user or user group id to retrieve associated entities for.")], type: Annotated[str, Field(description="Specify 'user' for user id or 'usergroup' for user group id.")]) -> dict:
+def get_associated_entities_for_user_or_group(id: Annotated[str, Field(description="The user or user group id to retrieve associated entities for.")], type: Annotated[str, Field(description="Specify 'user' for user id or 'usergroup' for user group id.")]) -> dict:
     """
     Gets the associated entities (roles and permissions for each entity) for a given user or user group id.
     """
