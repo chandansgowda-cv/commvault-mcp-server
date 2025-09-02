@@ -35,19 +35,8 @@ Before running the Commvault MCP Server, ensure the following requirements are m
 
 The Commvault MCP Server supports two authentication methods:
 
-#### Option 1: Traditional Token-Based Authentication
-
-The following values will be collected during the setup process:
-
-* **Commvault Access Credentials:**
-  You need a valid `access_token` and `refresh_token` to authenticate with the Commvault API.
-  Learn how to generate these tokens here: [Creating an Access Token – Commvault Docs](https://documentation.commvault.com/11.38/expert/creating_access_token.html)
-  
-* **Secret Key:**
-  This secret must be included by the **MCP Client** in the `Authorization` header of all tool requests.
-  It acts as a security layer for tool access in remote server. You can set your own.
-
-#### Option 2: OAuth Authentication
+<details>
+<summary>Option 1: OAuth Authentication</summary>
 
 > **Note:** OAuth authentication is only supported for Commvault environments running **SP42 CU 27 and above**.
 > OAuth must be properly configured in the CommServe before using this option.
@@ -63,14 +52,28 @@ When using OAuth authentication, you'll need:
 * **Base URL:** Base URL of the MCP Server
 
 > **Important:** The redirect URI must be set to `OAUTH_BASE_URL/auth/callback` in your OAuth provider's app/client configuration.
+</details>
 
+<details>
+<summary>Option 2: Traditional Token-Based Authentication</summary>
+
+The following values will be collected during the setup process:
+
+* **Commvault Access Credentials:**
+  You need a valid `access_token` and `refresh_token` to authenticate with the Commvault API.
+  Learn how to generate these tokens here: [Creating an Access Token – Commvault Docs](https://documentation.commvault.com/11.38/expert/creating_access_token.html)
+  
+* **Secret Key:**
+  This secret must be included by the **MCP Client** in the `Authorization` header of all tool requests.
+  It acts as a security layer for tool access in remote server. You can set your own.
+</details>
 
 ## Setup
 
 ### 1. Clone the repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/chandansgowda-cv/commvault-mcp-server.git
 cd commvault-mcp-server
 ```
 
@@ -87,7 +90,7 @@ The setup script will guide you through configuration options including:
 uv run setup.py
 ```
 
-### 3. Run the MCP Server
+### 3. Start the MCP Server
 
 ```bash
 uv run -m src.server
@@ -179,4 +182,3 @@ Refer to your AI client’s documentation for integration steps. For example, Cl
 ## License
 
 This project is licensed under the Apache License. See the [LICENSE](./LICENSE) file for details.
-
