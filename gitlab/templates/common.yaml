@@ -8,7 +8,12 @@ mirror_to_github:
   only:
     - main
   when: manual
+  before_script:
+    - apk add --no-cache git openssh
   script:
-    - apk add --no-cache git
+    - git init
+    - git remote add origin "$CI_REPOSITORY_URL"
+    - git fetch origin main
+    - git checkout -b main origin/main
     - git remote add github https://oauth2:${GITHUB_TOKEN}@github.com/chandansgowda-cv/commvault-mcp-server.git
     - git push github main --force
