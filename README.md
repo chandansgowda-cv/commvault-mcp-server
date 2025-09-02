@@ -4,8 +4,7 @@
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 [![License](https://img.shields.io/badge/License-Apache_2.0-red.svg)](https://opensource.org/licenses/Apache-2.0)
 
-
-A [Model Context Protocol (MCP)](https://modelcontextprotocol.org/) server for interacting with **Commvault** software. This server provides a standardized interface for AI agents to access job details, security posture and SLA status of the commcell.
+A [Model Context Protocol (MCP)](https://modelcontextprotocol.org/) server for seamless integration with **Commvault** environments. This server enables AI agents to securely access and manage job details, commcell metrics, client and storage information, user permissions, plan configurations, and backup schedules.
 
 
 ## Features
@@ -34,6 +33,10 @@ Before running the Commvault MCP Server, ensure the following requirements are m
 
 ### 2. Authentication & Security Configuration
 
+The Commvault MCP Server supports two authentication methods:
+
+#### Option 1: Traditional Token-Based Authentication
+
 The following values will be collected during the setup process:
 
 * **Commvault Access Credentials:**
@@ -42,7 +45,24 @@ The following values will be collected during the setup process:
   
 * **Secret Key:**
   This secret must be included by the **MCP Client** in the `Authorization` header of all tool requests.
-  It acts as a security layer for tool access in remote server. You can set your own. 
+  It acts as a security layer for tool access in remote server. You can set your own.
+
+#### Option 2: OAuth Authentication
+
+> **Note:** OAuth authentication is only supported for Commvault environments running **SP42 CU 27 and above**.
+> OAuth must be properly configured in the CommServe before using this option.
+
+When using OAuth authentication, you'll need:
+
+* **Authorization Endpoint:** The authorization URL for your OAuth provider
+* **Token Endpoint:** The token exchange URL for your OAuth provider  
+* **Client ID:** Your OAuth application's client identifier
+* **Client Secret:** Your OAuth application's client secret
+* **JWKS URI:** The JSON Web Key Set URI for token validation
+* **Required Scopes:** Required OAuth scopes
+* **Base URL:** Base URL of the MCP Server
+
+> **Important:** The redirect URI must be set to `OAUTH_BASE_URL/auth/callback` in your OAuth provider's app/client configuration.
 
 
 ## Setup
@@ -56,6 +76,13 @@ cd commvault-mcp-server
 
 ### 2. Run the Setup Script
 
+The setup script will guide you through configuration options including:
+- Transport mode (stdio, streamable-http, or sse)
+- Server connection details (for remote modes)
+- Authentication method (traditional tokens or OAuth)
+- OAuth configuration (if selected)
+- Secure token storage
+
 ```bash
 uv run setup.py
 ```
@@ -66,10 +93,16 @@ uv run setup.py
 uv run -m src.server
 ```
 
-
 ## Configuring Clients
 
-> **Note:** `npx` is required. You can get it by installing [Node.js](https://nodejs.org/) which includes `npx` by default.
+> **Note:** `npx` is required while using Token-Based Authentication. You can get it by installing [Node.js](https://nodejs.org/) which includes `npx` by default.
+
+<details>
+<summary>While using OAuth</summary>
+
+Refer to your AI client’s documentation for integration steps. For example, Claude requires specifying a server name and the MCP server URL in its connector configuration.
+
+</details>
 
 <details>
 <summary>Remote MCP Server (Streamable HTTP / SSE)</summary>
