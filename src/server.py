@@ -25,15 +25,31 @@ import sys
 from typing import List, Callable
 
 from fastmcp import FastMCP
+from fastmcp.tools import Tool
+from fastmcp.server.auth.oauth_proxy import OAuthProxy
 
+from src.auth.jwt_verifier import CustomJWTVerifier
 from src.config import ConfigManager, SERVER_NAME, SERVER_INSTRUCTIONS
 from src.tools import ALL_TOOL_CATEGORIES
 from src.auth_validator import validate_auth_credentials_at_startup  # Import the validator
 from src.logger import logger
 
 
-def create_mcp_server() -> FastMCP:
-    return FastMCP(name=SERVER_NAME, instructions=SERVER_INSTRUCTIONS)
+def create_mcp_server(config) -> FastMCP:
+    auth = None
+    if config.use_oauth:
+        auth = OAuthProxy(
+            upstream_authorization_endpoint=config.oauth_authorization_endpoint,
+            upstream_token_endpoint=config.oauth_token_endpoint,
+            upstream_client_id=config.oauth_client_id,
+            upstream_client_secret=config.oauth_client_secret,
+            base_url=config.oauth_base_url,
+            token_verifier=CustomJWTVerifier(
+                jwks_uri=config.oauth_jwks_uri,
+                required_scopes=config.oauth_required_scopes
+            )
+        )
+    return FastMCP(name=SERVER_NAME, instructions=SERVER_INSTRUCTIONS, auth=auth)
 
 
 def register_tools(mcp_server: FastMCP, tool_categories: List[List[Callable]]) -> None:
@@ -41,8 +57,8 @@ def register_tools(mcp_server: FastMCP, tool_categories: List[List[Callable]]) -
     
     total_tools = 0
     for tool_category in tool_categories:
-        for tool in tool_category:
-            mcp_server.add_tool(tool)
+        for tool_fn in tool_category:
+            mcp_server.add_tool(Tool.from_function(tool_fn, output_schema=None))
             total_tools += 1
     
     logger.info(f"Successfully registered {total_tools} tools across {len(tool_categories)} categories")

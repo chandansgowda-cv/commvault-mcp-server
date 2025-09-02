@@ -78,22 +78,64 @@ def prompt_update_env(env_vars):
             val = Prompt.ask(key, default=current_val)
         env_vars[key] = val
 
+    # Ask about OAuth configuration only for non-stdio modes
+    if env_vars.get('MCP_TRANSPORT_MODE') != 'stdio':
+        console.print("\n[bold underline]Authentication Configuration[/bold underline]")
+        current_oauth = env_vars.get('USE_OAUTH', 'false').lower()
+        use_oauth = Prompt.ask("Use OAuth for authentication? (y/n)", 
+                             default='y' if current_oauth == 'true' else 'n')
+        
+        if use_oauth.lower() in ['y', 'yes', 'true']:
+            env_vars['USE_OAUTH'] = 'true'
+            console.print("\n[bold]OAuth Configuration[/bold]")
+            
+            oauth_keys = [
+                ('OAUTH_AUTHORIZATION_ENDPOINT', 'OAuth Authorization Endpoint'),
+                ('OAUTH_TOKEN_ENDPOINT', 'OAuth Token Endpoint'),
+                ('OAUTH_CLIENT_ID', 'OAuth Client ID'),
+                ('OAUTH_JWKS_URI', 'OAuth JWKS URI'),
+                ('OAUTH_REQUIRED_SCOPES', 'OAuth Required Scopes (comma-separated)'),
+                ('OAUTH_BASE_URL', 'OAuth Base URL')
+            ]
+            
+            for key, description in oauth_keys:
+                current_val = env_vars.get(key, '')
+                val = Prompt.ask(f"{description}", default=current_val)
+                env_vars[key] = val
+        else:
+            env_vars['USE_OAUTH'] = 'false'
+            # Remove OAuth-related vars if user chooses not to use OAuth
+            oauth_keys_to_remove = [
+                'OAUTH_AUTHORIZATION_ENDPOINT', 'OAUTH_TOKEN_ENDPOINT', 
+                'OAUTH_CLIENT_ID', 'OAUTH_JWKS_URI', 'OAUTH_REQUIRED_SCOPES', 
+                'OAUTH_BASE_URL'
+            ]
+            for key in oauth_keys_to_remove:
+                env_vars.pop(key, None)
+
     return env_vars
 
-def prompt_and_save_keyring(service_name, key_names):
-    console.print(f"\n[bold underline]Secure Tokens (stored in OS keyring)[/bold underline]")
-    console.print("Leave blank to keep the existing secret.\n")
-    console.print("[bold yellow]Warning: Ensure you're entering sensitive tokens in a secure terminal environment.[/bold yellow]")
-    for key in key_names:
-        current = keyring.get_password(service_name, key)
-        display_val = "<hidden>" if current else "none"
-        prompt_text = f"Enter {key} [{display_val}]"
-        val = getpass(prompt_text + ": ")
-        if val:
-            keyring.set_password(service_name, key, val)
-            console.print(f"[green]{key} updated.[/green]")
-        else:
-            console.print(f"[yellow]{key} unchanged.[/yellow]")
+def prompt_and_save_keyring(service_name, env_vars):
+    # Only ask for keyring secrets if NOT using OAuth
+    if env_vars.get('USE_OAUTH', 'false').lower() != 'true':
+        console.print(f"\n[bold underline]Secure Tokens (stored in OS keyring)[/bold underline]")
+        console.print("Leave blank to keep the existing secret.\n")
+        console.print("[bold yellow]Warning: Ensure you're entering sensitive tokens in a secure terminal environment.[/bold yellow]")
+        
+        basic_keys = ['access_token', 'refresh_token', 'server_secret']
+        for key in basic_keys:
+            current = keyring.get_password(service_name, key)
+            display_val = "<hidden>" if current else "none"
+            prompt_text = f"Enter {key} [{display_val}]"
+            val = getpass(prompt_text + ": ")
+            if val:
+                keyring.set_password(service_name, key, val)
+                console.print(f"[green]{key} updated.[/green]")
+            else:
+                console.print(f"[yellow]{key} unchanged.[/yellow]")
+    else:
+        console.print(f"\n[bold green]OAuth authentication enabled - skipping keyring token setup.[/bold green]")
+        console.print("[dim]OAuth will handle authentication using the configured endpoints and client credentials.[/dim]")
 
 def main():
     console.clear()
@@ -105,10 +147,9 @@ def main():
     console.print(f"\n[green]Updated {ENV_FILE} file.[/green]")
 
     service_name = 'commvault-mcp-server'
-    secret_keys = ['access_token', 'refresh_token', 'server_secret']
-    prompt_and_save_keyring(service_name, secret_keys)
+    prompt_and_save_keyring(service_name, env_vars)
 
-    console.print("\n[bold green]Setup complete! You can now run the MCP server (uv run src/server.py)[/bold green]")
+    console.print("\n[bold green]Setup complete! You can now run the MCP server (uv run -m src.server)[/bold green]")
 
 if __name__ == '__main__':
     main()
