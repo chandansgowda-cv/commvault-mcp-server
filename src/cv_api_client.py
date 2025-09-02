@@ -21,8 +21,8 @@ from urllib.parse import urljoin
 import time
 from dotenv import load_dotenv
 
-from src.oauth_service import OAuthService
-from src.auth_service import AuthService
+from src.auth.oauth_service import OAuthService
+from src.auth.auth_service import AuthService
 from src.logger import logger
 from src.utils import get_env_var
 
@@ -101,7 +101,7 @@ class CommvaultApiClient:
                 retry_delay: float = 1.0) -> requests.Response:
 
         # Check if the secret key is passed in the header for sse and streamable-http modes when OAuth is not used
-        if get_env_var('USE_OAUTH')!="true" and get_env_var('MCP_TRANSPORT_MODE')!="stdio" and not self.auth_service.is_client_token_valid():
+        if get_env_var('USE_OAUTH', 'false')!="true" and get_env_var('MCP_TRANSPORT_MODE')!="stdio" and not self.auth_service.is_client_token_valid():
             logger.error("Invalid or missing token in client request")
             raise Exception("Invalid or missing token in request.")
         
@@ -163,8 +163,9 @@ class CommvaultApiClient:
                     time.sleep(backoff_time)
                 else:
                     # If we get here, it means we got a 401 and the token refresh failed
-                    raise Exception("Failed to refresh token. please create a new token update the keyring")
-                    
+                    if not self.use_oauth:
+                        raise Exception("Failed to refresh token. please create a new token update the keyring")
+                    raise e
             except requests.exceptions.RequestException as e:
                 retries += 1
                 if retries > max_retries:

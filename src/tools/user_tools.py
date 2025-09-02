@@ -213,7 +213,7 @@ USER_MANAGEMENT_TOOLS = [
     get_user_groups_list,
     get_user_group_properties,
     set_user_group_assignment,
-    get_associated_entities_for_user_or_user_group,
+    get_associated_entities_for_user_or_group,
     view_entity_permissions,
     grant_or_revoke_access_to_entity,
     get_roles_list

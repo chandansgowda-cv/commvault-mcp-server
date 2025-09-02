@@ -23,7 +23,7 @@ environment variable management and server settings.
 
 import sys
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional
 
 from src.logger import logger
 from src.utils import get_env_var
@@ -42,6 +42,8 @@ class ServerConfig:
     oauth_client_id: Optional[str] = None
     oauth_client_secret: Optional[str] = None
     oauth_jwks_uri: Optional[str] = None
+    oauth_required_scopes: Optional[List[str]] = None
+    oauth_base_url: Optional[str] = None
 
     def __post_init__(self):
         """Validate configuration after initialization."""
@@ -84,7 +86,9 @@ class ConfigManager:
                         oauth_token_endpoint=get_env_var("OAUTH_TOKEN_ENDPOINT"),
                         oauth_client_id=get_env_var("OAUTH_CLIENT_ID"),
                         oauth_client_secret=get_env_var("OAUTH_CLIENT_SECRET"),
-                        oauth_jwks_uri=get_env_var("OAUTH_JWKS_URI")
+                        oauth_jwks_uri=get_env_var("OAUTH_JWKS_URI"),
+                        oauth_required_scopes=get_env_var("OAUTH_REQUIRED_SCOPES").split(","),
+                        oauth_base_url=get_env_var("OAUTH_BASE_URL")
                     )
                 else:
                     config = ServerConfig(
