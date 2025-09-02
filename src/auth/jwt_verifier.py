@@ -88,7 +88,7 @@ class CustomJWTVerifier(JWTVerifier):
             return AccessToken(
                 token=token,
                 client_id=str(client_id),
-                scopes=self.required_scopes, # this will be verified in the CV API layer
+                scopes=self.required_scopes, # this will be verified in the CV API layer (workaround to support azure oauth)
                 expires_at=int(exp) if exp else None,
                 claims=claims,
             )
