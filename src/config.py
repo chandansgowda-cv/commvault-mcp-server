@@ -36,7 +36,6 @@ class ServerConfig:
     port: Optional[int] = None
     path: Optional[str] = None
     use_oauth: bool = False
-    oauth_provider: Optional[str] = None
     oauth_authorization_endpoint: Optional[str] = None
     oauth_token_endpoint: Optional[str] = None
     oauth_client_id: Optional[str] = None
@@ -55,7 +54,7 @@ class ServerConfig:
                 raise ValueError("Host, port, and path are required for non-stdio transport modes")
 
         if self.use_oauth:
-            if not all([self.oauth_provider, self.oauth_authorization_endpoint, self.oauth_token_endpoint, self.oauth_client_id, self.oauth_client_secret, self.oauth_jwks_uri]):
+            if not all([self.oauth_authorization_endpoint, self.oauth_token_endpoint, self.oauth_client_id, self.oauth_client_secret, self.oauth_jwks_uri]):
                 raise ValueError("All OAuth-related fields must be set for custom OAuth provider")
 
 
@@ -81,7 +80,6 @@ class ConfigManager:
                         port=port,
                         path=path,
                         use_oauth=True,
-                        oauth_provider=get_env_var("OAUTH_PROVIDER"),
                         oauth_authorization_endpoint=get_env_var("OAUTH_AUTHORIZATION_ENDPOINT"),
                         oauth_token_endpoint=get_env_var("OAUTH_TOKEN_ENDPOINT"),
                         oauth_client_id=get_env_var("OAUTH_CLIENT_ID"),
