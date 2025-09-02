@@ -37,6 +37,7 @@ The Commvault MCP Server supports two authentication methods:
 
 <details>
 <summary>Option 1: OAuth Authentication</summary>
+<br/>
 
 > **Note:** OAuth authentication is only supported for Commvault environments running **SP42 CU 27 and above**.
 > OAuth must be properly configured in the CommServe before using this option.
@@ -56,6 +57,7 @@ When using OAuth authentication, you'll need:
 
 <details>
 <summary>Option 2: Traditional Token-Based Authentication</summary>
+<br/>
 
 The following values will be collected during the setup process:
 
@@ -102,6 +104,7 @@ uv run -m src.server
 
 <details>
 <summary>While using OAuth</summary>
+<br/>
 
 Refer to your AI client’s documentation for integration steps. For example, Claude requires specifying a server name and the MCP server URL in its connector configuration.
 
