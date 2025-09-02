@@ -26,5 +26,5 @@ class OAuthService:
         auth_header = request.headers.get("Authorization")
         if auth_header is None:
             logger.error("Authentication validation failed")
-            return False
+            raise Exception("Authentication validation failed. Please relogin and try again.")
         return auth_header, None
