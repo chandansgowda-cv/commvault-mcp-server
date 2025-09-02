@@ -193,4 +193,4 @@ class CommvaultApiClient:
         """Make a PUT request to the API."""
         return self.request("PUT", endpoint, params=params, data=data, headers=headers)
 
-commvault_api_client = CommvaultApiClient(use_oauth=(get_env_var('USE_OAUTH').lower() == 'true'))
+commvault_api_client = CommvaultApiClient(use_oauth=(get_env_var('USE_OAUTH', 'false').lower() == 'true'))
