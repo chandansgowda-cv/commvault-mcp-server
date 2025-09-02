@@ -1,5 +1,8 @@
 image: alpine:latest
 
+variables:
+  GIT_DEPTH: 0
+
 stages:
   - mirror
 
