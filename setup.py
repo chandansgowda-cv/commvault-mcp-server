@@ -93,22 +93,34 @@ def prompt_update_env(env_vars):
                 ('OAUTH_AUTHORIZATION_ENDPOINT', 'OAuth Authorization Endpoint'),
                 ('OAUTH_TOKEN_ENDPOINT', 'OAuth Token Endpoint'),
                 ('OAUTH_CLIENT_ID', 'OAuth Client ID'),
+                ('OAUTH_CLIENT_SECRET', 'OAuth Client Secret'),
                 ('OAUTH_JWKS_URI', 'OAuth JWKS URI'),
                 ('OAUTH_REQUIRED_SCOPES', 'OAuth Required Scopes (comma-separated)'),
                 ('OAUTH_BASE_URL', 'OAuth Base URL')
             ]
-            
+
             for key, description in oauth_keys:
                 current_val = env_vars.get(key, '')
-                val = Prompt.ask(f"{description}", default=current_val)
+                if key == 'OAUTH_CLIENT_SECRET':
+                    masked = '*' * len(current_val) if current_val else ''
+                    val = getpass(f"{description} [{masked}]: ", stream=None)
+                    if val:
+                        console.print(f"[green]{description} updated.[/green]")
+                    else:
+                        console.print(f"[yellow]{description} unchanged.[/yellow]")
+                    if not val:
+                        val = current_val
+                else:
+                    val = Prompt.ask(f"{description}", default=current_val)
                 env_vars[key] = val
+
         else:
             env_vars['USE_OAUTH'] = 'false'
             # Remove OAuth-related vars if user chooses not to use OAuth
             oauth_keys_to_remove = [
                 'OAUTH_AUTHORIZATION_ENDPOINT', 'OAUTH_TOKEN_ENDPOINT', 
                 'OAUTH_CLIENT_ID', 'OAUTH_JWKS_URI', 'OAUTH_REQUIRED_SCOPES', 
-                'OAUTH_BASE_URL'
+                'OAUTH_BASE_URL', 'OAUTH_CLIENT_SECRET'
             ]
             for key in oauth_keys_to_remove:
                 env_vars.pop(key, None)
