@@ -44,11 +44,9 @@ The Commvault MCP Server supports two authentication methods:
 
 When using OAuth authentication, you'll need:
 
-* **Authorization Endpoint:** The authorization URL for your OAuth provider
-* **Token Endpoint:** The token exchange URL for your OAuth provider  
+* **Discovery Endpoint URL:** The OAuth discovery/metadata endpoint
 * **Client ID:** Your OAuth application's client identifier
 * **Client Secret:** Your OAuth application's client secret
-* **JWKS URI:** The JSON Web Key Set URI for token validation
 * **Required Scopes:** Required OAuth scopes
 * **Base URL:** Base URL of the MCP Server
 

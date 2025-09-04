@@ -89,12 +89,34 @@ def prompt_update_env(env_vars):
             env_vars['USE_OAUTH'] = 'true'
             console.print("\n[bold]OAuth Configuration[/bold]")
             
+            # First ask for discovery endpoint
+            discovery_endpoint = Prompt.ask("OAuth Discovery Endpoint URL", 
+                                         default=env_vars.get('OAUTH_DISCOVERY_ENDPOINT', ''))
+            env_vars['OAUTH_DISCOVERY_ENDPOINT'] = discovery_endpoint
+            
+            # If discovery endpoint is provided, fetch and set the other endpoints
+            if discovery_endpoint:
+                try:
+                    console.print("[dim]Fetching OAuth configuration from discovery endpoint...[/dim]")
+                    import requests
+                    response = requests.get(discovery_endpoint)
+                    if response.status_code == 200:
+                        discovery_data = response.json()
+                        env_vars['OAUTH_AUTHORIZATION_ENDPOINT'] = discovery_data.get('authorization_endpoint', '')
+                        env_vars['OAUTH_TOKEN_ENDPOINT'] = discovery_data.get('token_endpoint', '')
+                        env_vars['OAUTH_JWKS_URI'] = discovery_data.get('jwks_uri', '')
+                        console.print("[green]Successfully retrieved OAuth endpoints from discovery URL.[/green]")
+                    else:
+                        console.print(f"[red]Failed to fetch from discovery endpoint (HTTP {response.status_code}). Setup aborted.[/red]")
+                        exit(1)
+                except Exception as e:
+                    console.print(f"[red]Error fetching from discovery endpoint: {str(e)} Setup aborted.[/red]")
+                    exit(1)
+            
+            # Add the remaining OAuth configuration that can't be obtained from discovery
             oauth_keys = [
-                ('OAUTH_AUTHORIZATION_ENDPOINT', 'OAuth Authorization Endpoint'),
-                ('OAUTH_TOKEN_ENDPOINT', 'OAuth Token Endpoint'),
                 ('OAUTH_CLIENT_ID', 'OAuth Client ID'),
                 ('OAUTH_CLIENT_SECRET', 'OAuth Client Secret'),
-                ('OAUTH_JWKS_URI', 'OAuth JWKS URI'),
                 ('OAUTH_REQUIRED_SCOPES', 'OAuth Required Scopes (comma-separated)'),
                 ('OAUTH_BASE_URL', 'OAuth Base URL')
             ]
@@ -120,7 +142,7 @@ def prompt_update_env(env_vars):
             oauth_keys_to_remove = [
                 'OAUTH_AUTHORIZATION_ENDPOINT', 'OAUTH_TOKEN_ENDPOINT', 
                 'OAUTH_CLIENT_ID', 'OAUTH_JWKS_URI', 'OAUTH_REQUIRED_SCOPES', 
-                'OAUTH_BASE_URL', 'OAUTH_CLIENT_SECRET'
+                'OAUTH_BASE_URL', 'OAUTH_CLIENT_SECRET', 'OAUTH_DISCOVERY_ENDPOINT'
             ]
             for key in oauth_keys_to_remove:
                 env_vars.pop(key, None)
