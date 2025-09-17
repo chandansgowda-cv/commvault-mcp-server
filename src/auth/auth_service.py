@@ -65,6 +65,7 @@ class AuthService:
         secret = keyring.get_password(self.__service_name, "server_secret")
 
         if not access_token or not refresh_token or not secret:
+            logger.error("Authentication validation failed: Server secrets missing")
             return False
 
         if not hmac.compare_digest(mcp_client_token, secret):

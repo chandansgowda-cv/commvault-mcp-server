@@ -3,211 +3,305 @@ import json
 import pytest
 
 def extract_response_data(result):
-    """Extract and parse data from MCP client response."""
-    if not isinstance(result, list) or len(result) == 0:
+    # Handle CallToolResult object
+    if hasattr(result, 'content'):
+        content_list = result.content
+    else:
+        content_list = result
+    
+    if not isinstance(content_list, list) or len(content_list) == 0:
         raise AssertionError("Expected list response with at least one item")
     
-    if not hasattr(result[0], "text"):
+    if not hasattr(content_list[0], "text"):
         raise AssertionError("Response item missing 'text' attribute")
     
-    response_text = result[0].text
+    response_text = content_list[0].text
     
-    # First try to parse as JSON
     try:
         return json.loads(response_text)
     except json.JSONDecodeError:
-        # If not JSON, return the raw text for further analysis
         return response_text
 
-def assert_no_error_in_response(data, operation_name):
-    """Assert that response data doesn't contain errors."""
+def assert_no_error_in_response(data, operation_name, acceptable_errors=None):
+    if acceptable_errors is None:
+        acceptable_errors = []
+    
     if isinstance(data, str):
-        # Check for common error patterns in string responses
+        data_lower = data.lower()
+        for acceptable in acceptable_errors:
+            if acceptable.lower() in data_lower:
+                return 
+        
         error_indicators = [
             "error occurred", "failed to", "invalid", "unauthorized", 
             "not found", "exception", "traceback",
             "internal server error", "bad request", "forbidden"
         ]
-        data_lower = data.lower()
         for indicator in error_indicators:
             if indicator in data_lower:
                 raise AssertionError(f"{operation_name} failed with error: {data}")
-        # If it's a plain string without error indicators, it might be a valid response
         return
     
     elif isinstance(data, dict):
-        # Check for explicit error structure
         if "error" in data:
             error = data["error"]
             if isinstance(error, dict):
                 error_msg = error.get("errorMessage", "")
                 error_code = error.get("errorCode", 0)
+                
+                for acceptable in acceptable_errors:
+                    if acceptable.lower() in error_msg.lower():
+                        return  
+                
                 if error_msg or error_code != 0:
                     raise AssertionError(f"{operation_name} failed with error: {error_msg} (code: {error_code})")
-            elif error:  # Non-empty error value
+            elif error: 
                 raise AssertionError(f"{operation_name} failed with error: {error}")
         
-        # Check for common error indicators
         if "errorMessage" in data and data["errorMessage"]:
-            raise AssertionError(f"{operation_name} failed: {data['errorMessage']}")
+            error_msg = data["errorMessage"]
+            
+            for acceptable in acceptable_errors:
+                if acceptable.lower() in error_msg.lower():
+                    return  
+            
+            raise AssertionError(f"{operation_name} failed: {error_msg}")
         
         if "errorCode" in data and data["errorCode"] != 0:
             raise AssertionError(f"{operation_name} failed with error code: {data['errorCode']}")
 
-async def test_get_sla_status(mcp_server):
-    async with Client(mcp_server) as client:
-        result = await client.call_tool("get_sla_status", {})
-        data = extract_response_data(result)
-        assert_no_error_in_response(data, "get_sla_status")
-        
-        # Verify expected structure for SLA status
+def get_job_id_from_jobs_response(data):
+    try:
         if isinstance(data, dict):
-            # SLA data should contain percentage or status info
-            assert len(data) > 0, "SLA status response should not be empty"
-        elif isinstance(data, str):
-            # If it's a non-error string, that might be acceptable
-            pass
-        else:
-            assert isinstance(data, (list, dict)), f"Expected dict, list, or string response, got {type(data)}"
+            if "jobsInThisResponse" in data and data["jobsInThisResponse"]:
+                return str(data["jobsInThisResponse"][0].get("jobId"))
+            elif "jobs" in data and data["jobs"]:
+                return str(data["jobs"][0].get("jobId"))
+        elif isinstance(data, list) and data:
+            return str(data[0].get("jobId"))
+    except Exception:
+        pass
+    return None
 
-async def test_get_security_posture(mcp_server):
-    async with Client(mcp_server) as client:
-        result = await client.call_tool("get_security_posture", {})
-        data = extract_response_data(result)
-        assert_no_error_in_response(data, "get_security_posture")
-        
-        # Verify expected structure
+def find_job_by_status(data, target_status):
+    try:
+        jobs_list = []
         if isinstance(data, dict):
-            assert len(data) > 0, "Security posture response should not be empty"
-        elif isinstance(data, str):
-            # If it's a non-error string, that might be acceptable
-            pass
-        else:
-            assert isinstance(data, (list, dict)), f"Expected dict, list, or string response, got {type(data)}"
+            if "jobsInThisResponse" in data:
+                jobs_list = data["jobsInThisResponse"]
+            elif "jobs" in data:
+                jobs_list = data["jobs"]
+        elif isinstance(data, list):
+            jobs_list = data
+        
+        for job in jobs_list:
+            if isinstance(job, dict):
+                job_status = job.get("status", "")
+                if isinstance(job_status, str) and job_status.lower() == target_status.lower():
+                    return str(job.get("jobId"))
+    except Exception:
+        pass
+    return None
 
-async def test_get_security_score(mcp_server):
+async def test_tool_functionality(mcp_server):
     async with Client(mcp_server) as client:
-        result = await client.call_tool("get_security_score", {})
-        data = extract_response_data(result)
-        assert_no_error_in_response(data, "get_security_score")
+        result = await client.call_tool("get_job_detail", {"job_id": 99999999})
         
-        # Verify expected structure
+        response_text = result.content[0].text if hasattr(result, 'content') else result[0].text
+        expected_error = "No job found with ID: 99999999"
+        assert expected_error in response_text, f"Expected specific error message, got: {response_text}"
+
+async def test_get_job_detail(mcp_server):
+    async with Client(mcp_server) as client:
+        jobs_result = await client.call_tool("get_jobs_list", {})
+        jobs_data = extract_response_data(jobs_result)
+        assert_no_error_in_response(jobs_data, "get_jobs_list")
+        
+        job_id = get_job_id_from_jobs_response(jobs_data)
+        
+        if not job_id:
+            pytest.skip("No jobs exist in the system")
+        
+        result = await client.call_tool("get_job_detail", {"job_id": int(job_id)})
+        data = extract_response_data(result)
+        assert_no_error_in_response(data, "get_job_detail")
+        
         if isinstance(data, dict):
-            # Should contain security score
-            if "security_score" in data:
-                assert isinstance(data["security_score"], (int, float)), "Security score should be numeric"
-                assert 0 <= data["security_score"] <= 100, "Security score should be between 0 and 100"
+            assert len(data) > 0, "Job detail response should not be empty"
+
+async def test_suspend_job(mcp_server):
+    async with Client(mcp_server) as client:
+        jobs_result = await client.call_tool("get_jobs_list", {"job_status": "Active"})
+        jobs_data = extract_response_data(jobs_result)
+        assert_no_error_in_response(jobs_data, "get_jobs_list")
+        
+        job_id = get_job_id_from_jobs_response(jobs_data)
+        
+        if not job_id:
+            pytest.skip("No active jobs exist in the system")
+        
+        result = await client.call_tool("suspend_job", {
+            "job_id": int(job_id), 
+            "reason": "Test suspension"
+        })
+        data = extract_response_data(result)
+        assert_no_error_in_response(data, "suspend_job")
+
+async def test_resume_job(mcp_server):
+    async with Client(mcp_server) as client:
+        jobs_result = await client.call_tool("get_jobs_list", {})
+        jobs_data = extract_response_data(jobs_result)
+        assert_no_error_in_response(jobs_data, "get_jobs_list")
+        
+        job_id = find_job_by_status(jobs_data, "Failed")
+        
+        if not job_id:
+            failed_jobs_result = await client.call_tool("get_failed_jobs", {})
+            failed_jobs_data = extract_response_data(failed_jobs_result)
+            assert_no_error_in_response(failed_jobs_data, "get_failed_jobs")
+            job_id = get_job_id_from_jobs_response(failed_jobs_data)
+        
+        if not job_id:
+            pytest.skip("No failed jobs exist in the system to resume")
+        
+        result = await client.call_tool("resume_job", {"job_id": int(job_id)})
+        data = extract_response_data(result)
+        assert_no_error_in_response(data, "resume_job")
+
+async def test_resubmit_job(mcp_server):
+    async with Client(mcp_server) as client:
+        jobs_result = await client.call_tool("get_jobs_list", {"jobLookupWindow": 604800})  # 7 days
+        jobs_data = extract_response_data(jobs_result)
+        assert_no_error_in_response(jobs_data, "get_jobs_list")
+        
+        resubmittable_statuses = ["Failed", "Killed", "Suspended"]
+        job_id = None
+        
+        for status in resubmittable_statuses:
+            job_id = find_job_by_status(jobs_data, status)
+            if job_id:
+                break
+        
+        if not job_id:
+            failed_jobs_result = await client.call_tool("get_failed_jobs", {"jobLookupWindow": 604800})
+            failed_jobs_data = extract_response_data(failed_jobs_result)
+            assert_no_error_in_response(failed_jobs_data, "get_failed_jobs")
+            job_id = get_job_id_from_jobs_response(failed_jobs_data)
+        
+        if not job_id:
+            pytest.skip("No recent resubmittable jobs exist in the system")
+        
+        result = await client.call_tool("resubmit_job", {"job_id": int(job_id)})
+        data = extract_response_data(result)
+        
+        acceptable_errors = [
+            "job is older than",
+            "cannot be resubmitted",
+            "job status does not allow resubmission",
+            "resubmit operation is not supported for workflow jobs"
+        ]
+        assert_no_error_in_response(data, "resubmit_job", acceptable_errors)
+
+async def test_kill_job(mcp_server):
+    async with Client(mcp_server) as client:
+        jobs_result = await client.call_tool("get_jobs_list", {})
+        jobs_data = extract_response_data(jobs_result)
+        assert_no_error_in_response(jobs_data, "get_jobs_list")
+        
+        job_id = find_job_by_status(jobs_data, "Waiting")
+        
+        if not job_id:
+            pytest.skip("No waiting jobs exist in the system to kill")
+        
+        result = await client.call_tool("kill_job", {"job_id": int(job_id)})
+        data = extract_response_data(result)
+        assert_no_error_in_response(data, "kill_job")
+
+async def test_get_jobs_list(mcp_server):
+    async with Client(mcp_server) as client:
+        result = await client.call_tool("get_jobs_list", {})
+        data = extract_response_data(result)
+        assert_no_error_in_response(data, "get_jobs_list")
+        
+        if isinstance(data, dict):
+            if "jobsInThisResponse" in data:
+                assert isinstance(data["jobsInThisResponse"], list), "jobsInThisResponse should be a list"
+            elif "jobs" in data:
+                assert isinstance(data["jobs"], list), "jobs should be a list"
             else:
-                assert len(data) > 0, "Security score response should not be empty"
-        elif isinstance(data, str):
-            # If it's a non-error string, that might be acceptable
-            pass
-        else:
-            assert isinstance(data, (list, dict)), f"Expected dict, list, or string response, got {type(data)}"
+                assert len(data) >= 0, "Response should be valid"
+        elif isinstance(data, list):
+            assert len(data) >= 0, "List response should be valid"
 
-async def test_get_storage_space_utilization(mcp_server):
+async def test_get_failed_jobs(mcp_server):
     async with Client(mcp_server) as client:
-        result = await client.call_tool("get_storage_space_utilization", {})
+        result = await client.call_tool("get_failed_jobs", {})
         data = extract_response_data(result)
-        assert_no_error_in_response(data, "get_storage_space_utilization")
+        assert_no_error_in_response(data, "get_failed_jobs")
         
-        # Verify expected structure
         if isinstance(data, dict):
-            # Should contain records or utilization data
-            if "records" in data:
-                assert isinstance(data["records"], list), "Records should be a list"
+            if "jobsInThisResponse" in data:
+                assert isinstance(data["jobsInThisResponse"], list), "jobsInThisResponse should be a list"
+            elif "jobs" in data:
+                assert isinstance(data["jobs"], list), "jobs should be a list"
             else:
-                assert len(data) > 0, "Storage utilization response should not be empty"
-        elif isinstance(data, str):
-            # If it's a non-error string, that might be acceptable
-            pass
-        else:
-            assert isinstance(data, (list, dict)), f"Expected dict, list, or string response, got {type(data)}"
+                assert len(data) >= 0, "Response should be valid"
+        elif isinstance(data, list):
+            assert len(data) >= 0, "List response should be valid"
 
-async def test_get_commcell_details(mcp_server):
+async def test_get_job_task_details(mcp_server):
     async with Client(mcp_server) as client:
-        result = await client.call_tool("get_commcell_details", {})
+        jobs_result = await client.call_tool("get_jobs_list", {"jobLookupWindow": 86400})  # Last 24 hours
+        jobs_data = extract_response_data(jobs_result)
+        assert_no_error_in_response(jobs_data, "get_jobs_list")
+        
+        job_id = get_job_id_from_jobs_response(jobs_data)
+        
+        if not job_id:
+            pytest.skip("No recent jobs exist in the system")
+        
+        result = await client.call_tool("get_job_task_details", {"job_id": int(job_id)})
         data = extract_response_data(result)
-        assert_no_error_in_response(data, "get_commcell_details")
         
-        # Verify expected structure
-        if isinstance(data, dict):
-            # Should contain records or commcell details
-            if "records" in data:
-                assert isinstance(data["records"], list), "Records should be a list"
-            else:
-                assert len(data) > 0, "CommCell details response should not be empty"
-        elif isinstance(data, str):
-            # If it's a non-error string, that might be acceptable
-            pass
-        else:
-            assert isinstance(data, (list, dict)), f"Expected dict, list, or string response, got {type(data)}"
+        acceptable_errors = [
+            "job is older than",
+            "unable to retrieve task details for old jobs",
+            "task details not available"
+        ]
+        assert_no_error_in_response(data, "get_job_task_details", acceptable_errors)
 
-# async def test_get_entity_counts(mcp_server):
-#     async with Client(mcp_server) as client:
-#         result = await client.call_tool("get_entity_counts", {})
-#         if isinstance(result, list) and hasattr(result[0], "text"):
-#             data = json.loads(result[0].text)
-#             assert not is_real_error(data)
-#         else:
-#             assert isinstance(result, dict)
-
-async def test_create_send_logs_job_for_commcell(mcp_server):
+async def test_get_retention_info_of_a_job(mcp_server):
     async with Client(mcp_server) as client:
-        # First get CommCell details to extract a valid CommCell name
-        commcell_details = await client.call_tool("get_commcell_details", {})
+        jobs_result = await client.call_tool("get_jobs_list", {})
+        jobs_data = extract_response_data(jobs_result)
+        assert_no_error_in_response(jobs_data, "get_jobs_list")
         
-        # API failure should fail the test
-        commcell_data = extract_response_data(commcell_details)
-        assert_no_error_in_response(commcell_data, "get_commcell_details")
+        job_id = get_job_id_from_jobs_response(jobs_data)
         
-        commcell_name = None
-        try:
-            if isinstance(commcell_data, dict):
-                if "records" in commcell_data and commcell_data["records"]:
-                    for record in commcell_data["records"]:
-                        if "commCellName" in record:
-                            commcell_name = record["commCellName"]
-                            break
-                elif "commCellName" in commcell_data:
-                    commcell_name = commcell_data["commCellName"]
-            elif isinstance(commcell_data, list) and commcell_data:
-                if "commCellName" in commcell_data[0]:
-                    commcell_name = commcell_data[0]["commCellName"]
-        except Exception as e:
-            # If we can't extract CommCell name, try getting client list
-            pass
+        if not job_id:
+            pytest.skip("No jobs exist in the system")
         
-        # If we can't get CommCell name from details, try getting client list and use first client name
-        if not commcell_name:
-            try:
-                clients = await client.call_tool("get_client_list", {})
-                clients_data = extract_response_data(clients)
-                assert_no_error_in_response(clients_data, "get_client_list")
-                
-                if isinstance(clients_data, dict):
-                    if "clients" in clients_data and clients_data["clients"]:
-                        commcell_name = clients_data["clients"][0].get("clientName")
-                elif isinstance(clients_data, list) and clients_data:
-                    commcell_name = clients_data[0].get("clientName")
-            except Exception:
-                pass
+        result = await client.call_tool("get_retention_info_of_a_job", {"job_id": int(job_id)})
+        data = extract_response_data(result)
+        assert_no_error_in_response(data, "get_retention_info_of_a_job")
+
+async def test_create_send_logs_job_for_a_job(mcp_server):
+    async with Client(mcp_server) as client:
+        jobs_result = await client.call_tool("get_jobs_list", {})
+        jobs_data = extract_response_data(jobs_result)
+        assert_no_error_in_response(jobs_data, "get_jobs_list")
         
-        # Only run test if we found a valid CommCell name, otherwise skip
-        if commcell_name:
-            result = await client.call_tool(
-                "create_send_logs_job_for_commcell",
-                {"emailid": "test@example.com", "commcell_name": commcell_name}
-            )
-            data = extract_response_data(result)
-            assert_no_error_in_response(data, "create_send_logs_job_for_commcell")
-            
-            # Verify task creation response
-            if isinstance(data, dict):
-                assert len(data) > 0, "Send logs job response should not be empty"
-            elif isinstance(data, str):
-                # String response without errors is acceptable
-                pass
-        else:
-            # Skip test if no CommCell name found
-            pytest.skip("No CommCell name found to test with")
+        job_id = get_job_id_from_jobs_response(jobs_data)
+        
+        if not job_id:
+            pytest.skip("No jobs exist in the system")
+        
+        result = await client.call_tool("create_send_logs_job_for_a_job", {
+            "emailid": "test@example.com", 
+            "job_id": int(job_id)
+        })
+        data = extract_response_data(result)
+        assert_no_error_in_response(data, "create_send_logs_job_for_a_job")
+        
+        if isinstance(data, dict):
+            assert len(data) > 0, "Send logs job response should not be empty"

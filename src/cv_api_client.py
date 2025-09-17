@@ -128,7 +128,6 @@ class CommvaultApiClient:
                     verify= self.ssl_verify
                 )
                 logger.info(f"Response status code: {response.status_code}")
-                logger.info(f"Response headers: {response.headers}, REsponse content: {response.text[:100]}...")  # Log first 100 chars of response content
                 # Handle 401 Unauthorized error (expired token)
                 if response.status_code == 401 and not self.use_oauth:
                     logger.info("Received 401 Unauthorized response. Attempting to refresh token...")
@@ -140,7 +139,7 @@ class CommvaultApiClient:
                         logger.info(f"Retrying {method} request with new token")
                         continue
                 
-                #Catch other HTTP errors
+                # Catch other HTTP errors
                 response.raise_for_status()
 
                 try:
