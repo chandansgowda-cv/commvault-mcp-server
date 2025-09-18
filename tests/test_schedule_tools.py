@@ -3,7 +3,6 @@ import json
 import pytest
 
 def extract_response_data(result):
-    # Handle CallToolResult object
     if hasattr(result, 'content'):
         content_list = result.content
     else:
@@ -106,60 +105,3 @@ async def test_get_schedule_properties(mcp_server):
             assert len(data) >= 0, "Schedule properties response should be valid"
         elif isinstance(data, str):
             pass
-
-
-# async def test_enable_schedule(mcp_server):
-#     async with Client(mcp_server) as client:
-#         schedules = await client.call_tool("get_schedules_list", {})
-#         
-#         if isinstance(schedules, list) and len(schedules) > 0:
-#             if hasattr(schedules[0], "text"):
-#                 try:
-#                     schedules_data = json.loads(schedules[0].text)
-#                     if isinstance(schedules_data, list) and len(schedules_data) > 0:
-#                         schedule_id = str(schedules_data[0].get("taskId", "25"))
-#                     elif isinstance(schedules_data, dict) and "schedules" in schedules_data:
-#                         schedules_list = schedules_data["schedules"]
-#                         if isinstance(schedules_list, list) and len(schedules_list) > 0:
-#                             schedule_id = str(schedules_list[0].get("taskId", "25"))
-#                         else:
-#                             schedule_id = "25"
-#                     else:
-#                         schedule_id = "25"
-#                 except (json.JSONDecodeError, KeyError):
-#                     schedule_id = "25"
-#             else:
-#                 schedule_id = "25"
-#         else:
-#             schedule_id = "25"
-#         
-#         result = await client.call_tool("enable_schedule", {"schedule_id": schedule_id})
-#         assert "error" not in result[0].text.lower() or "success" in result[0].text.lower() or isinstance(result, dict)
-
-# async def test_disable_schedule(mcp_server):
-#     async with Client(mcp_server) as client:
-#         schedules = await client.call_tool("get_schedules_list", {})
-#         
-#         if isinstance(schedules, list) and len(schedules) > 0:
-#             if hasattr(schedules[0], "text"):
-#                 try:
-#                     schedules_data = json.loads(schedules[0].text)
-#                     if isinstance(schedules_data, list) and len(schedules_data) > 0:
-#                         schedule_id = str(schedules_data[0].get("taskId", "24"))
-#                     elif isinstance(schedules_data, dict) and "schedules" in schedules_data:
-#                         schedules_list = schedules_data["schedules"]
-#                         if isinstance(schedules_list, list) and len(schedules_list) > 0:
-#                             schedule_id = str(schedules_list[0].get("taskId", "24"))
-#                         else:
-#                             schedule_id = "24"
-#                     else:
-#                         schedule_id = "24"
-#                 except (json.JSONDecodeError, KeyError):
-#                     schedule_id = "24"
-#             else:
-#                 schedule_id = "24"
-#         else:
-#             schedule_id = "24"
-#         
-#         result = await client.call_tool("disable_schedule", {"schedule_id": schedule_id})
-#         assert "error" not in result[0].text.lower() or "success" in result[0].text.lower()

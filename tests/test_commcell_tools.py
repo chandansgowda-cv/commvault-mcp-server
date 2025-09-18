@@ -3,7 +3,6 @@ import json
 import pytest
 
 def extract_response_data(result):
-    # Handle CallToolResult object
     if hasattr(result, 'content'):
         content_list = result.content
     else:
@@ -170,7 +169,7 @@ async def test_resume_job(mcp_server):
 
 async def test_resubmit_job(mcp_server):
     async with Client(mcp_server) as client:
-        jobs_result = await client.call_tool("get_jobs_list", {"jobLookupWindow": 604800})  # 7 days
+        jobs_result = await client.call_tool("get_jobs_list", {"jobLookupWindow": 604800}) 
         jobs_data = extract_response_data(jobs_result)
         assert_no_error_in_response(jobs_data, "get_jobs_list")
         
@@ -251,7 +250,7 @@ async def test_get_failed_jobs(mcp_server):
 
 async def test_get_job_task_details(mcp_server):
     async with Client(mcp_server) as client:
-        jobs_result = await client.call_tool("get_jobs_list", {"jobLookupWindow": 86400})  # Last 24 hours
+        jobs_result = await client.call_tool("get_jobs_list", {"jobLookupWindow": 86400})  
         jobs_data = extract_response_data(jobs_result)
         assert_no_error_in_response(jobs_data, "get_jobs_list")
         

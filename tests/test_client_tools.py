@@ -3,7 +3,6 @@ import json
 import pytest
 
 def extract_response_data(result):
-    # Handle CallToolResult object
     if hasattr(result, 'content'):
         content_list = result.content
     else:
@@ -139,7 +138,6 @@ async def test_get_client_group_properties(mcp_server):
             else:
                 raise AssertionError("Could not extract client group ID from API response")
         
-        # Test getting properties
         result = await client.call_tool("get_client_group_properties", {"client_group_id": client_group_id})
         data = extract_response_data(result)
         assert_no_error_in_response(data, "get_client_group_properties")
@@ -310,42 +308,3 @@ async def test_get_subclient_properties(mcp_server):
         assert_no_error_in_response(data, "get_subclient_properties")
         assert isinstance(data, (dict, str)), "Expected dict or string response"
 
-# async def test_run_backup_for_subclient(mcp_server):
-#     async with Client(mcp_server) as client:
-#         clients = await client.call_tool("get_client_list", {})
-#         
-#         if isinstance(clients, list) and len(clients) > 0:
-#             if hasattr(clients[0], "text"):
-#                 try:
-#                     clients_data = json.loads(clients[0].text)
-#                     if isinstance(clients_data, list) and len(clients_data) > 0:
-#                         client_id = str(clients_data[0].get("clientId", "3"))
-#                     else:
-#                         client_id = "3"
-#                 except (json.JSONDecodeError, KeyError):
-#                     client_id = "3"
-#             else:
-#                 client_id = "3"
-#         else:
-#             client_id = "3"
-#         
-#         subclients = await client.call_tool("get_subclient_list", {"client_identifier": client_id, "identifier_type": "id"})
-#         
-#         if isinstance(subclients, list) and len(subclients) > 0:
-#             if hasattr(subclients[0], "text"):
-#                 try:
-#                     subclients_data = json.loads(subclients[0].text)
-#                     if isinstance(subclients_data, list) and len(subclients_data) > 0:
-#                         subclient_id = str(subclients_data[0].get("subClientId", "3"))
-#                     else:
-#                         subclient_id = "3"
-#                 except (json.JSONDecodeError, KeyError):
-#                     subclient_id = "3"
-#             else:
-#                 subclient_id = "3"
-#         else:
-#             subclient_id = "3"
-#         
-#         backup_type = "INCREMENTAL"
-#         result = await client.call_tool("run_backup_for_subclient", {"subclient_id": subclient_id, "backup_type": backup_type})
-#         assert "error" not in result[0].text.lower() or "job" in result[0].text.lower() or "success" in result[0].text.lower()

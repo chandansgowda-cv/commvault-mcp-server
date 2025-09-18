@@ -69,10 +69,8 @@ def get_server_config():
 
 def run_server() -> None:
     try:
-        # Load config
         config = get_server_config()
         
-        # Create server and register tools
         mcp = create_mcp_server(config)
         register_tools(mcp, ALL_TOOL_CATEGORIES)
         
